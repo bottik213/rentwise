@@ -6,7 +6,7 @@ RentWise is a browser-only financial modeling tool for small U.S. long-term rent
 assumptions you underwrite before buying with the actual results you record after buying, and explains the
 difference to the cent.
 
-**Live demo:** _not deployed yet_ · No sign-up. Click "Try the example property" for a synthetic walkthrough.
+**Live demo:** https://rentwise-gamma-three.vercel.app · No sign-up. Click "Try the example property" for a synthetic walkthrough.
 **User guide:** [GUIDE.md](GUIDE.md) explains every input and result.
 
 > Financial modeling and education only. Not investment, legal, mortgage or tax advice. Results depend entirely on
