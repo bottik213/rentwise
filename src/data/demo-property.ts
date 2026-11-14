@@ -1,0 +1,35 @@
+import type { PropertyInputs } from "@/lib/finance/types";
+
+/** SYNTHETIC example property. Not a real listing; numbers are illustrative. Doubles as the reference test fixture. */
+export const DEMO_PROPERTY: PropertyInputs = {
+  nickname: "Example duplex (synthetic)",
+  purchasePrice: 25_000_000,
+  monthlyRent: 245_000,
+  otherMonthlyIncome: 0,
+  allCash: false,
+  downPaymentPct: 0.25,
+  annualInterestRate: 0.07,
+  loanTermYears: 30,
+  closingCostMode: "percent",
+  closingCostValue: 0.03,
+  initialRepairs: 500_000,
+  initialReserve: 1_000_000,
+  annualPropertyTax: 360_000,
+  annualInsurance: 192_000,
+  monthlyHoa: 0,
+  monthlyUtilities: 5_000,
+  otherMonthlyFixed: 0,
+  vacancyPct: 0.05,
+  maintenancePct: 0.08,
+  managementPct: 0.08,
+  capexPct: 0.05,
+  sources: {
+    purchasePrice: "listing",
+    monthlyRent: "estimate",
+    annualPropertyTax: "listing",
+    annualInsurance: "estimate",
+    vacancyPct: "estimate",
+    maintenancePct: "estimate",
+    capexPct: "estimate",
+  },
+};
