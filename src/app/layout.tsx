@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Schibsted_Grotesk } from "next/font/google";
 import { NavLinks } from "@/components/NavLinks";
+import { StorageNotice } from "@/components/StorageNotice";
 import "./globals.css";
 
 const sans = Schibsted_Grotesk({ variable: "--font-schibsted", subsets: ["latin"] });
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <NavLinks />
           </nav>
         </header>
+        <StorageNotice />
         <main id="main" className="flex-1">{children}</main>
         <footer className="border-t border-line">
           <p className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-muted sm:px-6">

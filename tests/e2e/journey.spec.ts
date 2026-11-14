@@ -151,3 +151,147 @@ test("loading the example never silently replaces recorded months", async ({ pag
   await expect(page).toHaveURL(/\/$/); // cancel stays put
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals.length)).toBe(1);
 });
+
+test("property form blocks invalid drafts and saves corrected values", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await page.getByRole("link", { name: "All inputs" }).click();
+  const save = page.getByRole("button", { name: "Save and view analysis" });
+  const insurance = page.getByLabel("Insurance", { exact: true });
+
+  await insurance.fill("-1");
+  await save.click();
+  await expect(page).toHaveURL(/\/analyze$/);
+  await expect(insurance).toBeFocused();
+  await expect(insurance).toHaveAttribute("aria-invalid", "true");
+
+  await insurance.fill("2400");
+  const closing = page.getByLabel("Closing costs", { exact: true });
+  await closing.fill("21");
+  await save.click();
+  await expect(page).toHaveURL(/\/analyze$/);
+  await expect(closing).toBeFocused();
+  await closing.fill("4");
+
+  const price = page.getByLabel("Purchase price", { exact: true });
+  await price.fill("");
+  await price.press("Enter");
+  await expect(page).toHaveURL(/\/analyze$/);
+  await expect(price).toHaveAttribute("aria-invalid", "true");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).property.annualInsurance)).toBe(192000);
+
+  await price.fill("$275,000");
+  await save.click();
+  await expect(page).toHaveURL(/\/results$/);
+  const property = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).property);
+  expect(property.annualInsurance).toBe(240000);
+  expect(property.purchasePrice).toBe(27500000);
+  expect(property.closingCostValue).toBe(0.04);
+});
+
+test("disabled financing drafts do not block an all-cash purchase", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await page.getByRole("link", { name: "All inputs" }).click();
+  await page.getByLabel("Interest rate", { exact: true }).fill("-1");
+  await page.getByLabel("All-cash purchase", { exact: false }).check();
+  await page.getByRole("button", { name: "Save and view analysis" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
+});
+
+test("actuals block invalid drafts, reset them, and save corrected amounts", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await page.getByRole("button", { name: "Mark as owned" }).click();
+  const insurance = page.getByLabel("Insurance", { exact: true });
+
+  await insurance.fill("garbage");
+  await page.getByRole("button", { name: "Add month" }).click();
+  await expect(insurance).toBeFocused();
+  await expect(insurance).toHaveAttribute("aria-invalid", "true");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals)).toEqual([]);
+
+  // Reset must also clear an invalid draft that never committed a value to the parent.
+  await page.getByRole("button", { name: "Reset" }).click();
+  await expect(insurance).toHaveValue("160");
+  await expect(insurance).toHaveAttribute("aria-invalid", "false");
+  await insurance.fill("260");
+  await page.getByRole("button", { name: "Add month" }).click();
+  await expect(row(page, /^Total variance/)).toContainText("−$100.00");
+  const actuals = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals);
+  expect(actuals).toHaveLength(1);
+  expect(actuals[0].insurance).toBe(26000);
+});
+
+test("loading the example protects edited inputs, scenarios and targets", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  const edits = [
+    ["Scheduled rent", "3000"],
+    ["Conservative Rent %", "-10"],
+    ["Min. cash flow after reserves", "200"],
+  ];
+
+  for (const [label, value] of edits) {
+    await page.getByLabel(label, { exact: true }).fill(value);
+    const saved = await page.evaluate(() => localStorage.getItem("rentwise:v1"));
+    await page.goto("/");
+    let asked = "";
+    page.once("dialog", (d) => { asked = d.message(); void d.dismiss(); });
+    await page.getByRole("button", { name: "Try the example property" }).click();
+    expect(asked).toContain("Loading the example replaces your property");
+    await expect(page).toHaveURL(/\/$/);
+    expect(await page.evaluate(() => localStorage.getItem("rentwise:v1"))).toBe(saved);
+
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Try the example property" }).click();
+    await expect(page).toHaveURL(/\/results$/);
+    const reset = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!));
+    expect(reset.property.monthlyRent).toBe(245000);
+    expect(reset.scenarios.conservative.rentChangePct).toBe(-0.05);
+    expect(reset.constraints.minMonthlyCashFlow).toBe(0);
+  }
+
+  // An untouched example can still be loaded again without a confirmation.
+  await page.goto("/");
+  page.once("dialog", (d) => d.dismiss());
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+});
+
+test("invalid Quick assumptions block both locking and re-locking a plan", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  const insurance = page.getByLabel("Insurance", { exact: true });
+  await insurance.fill("-1");
+  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+  await expect(insurance).toBeFocused();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan)).toBeNull();
+  await insurance.fill("");
+  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+  await insurance.fill("2400");
+  await insurance.press("Enter");
+  await expect(page).toHaveURL(/\/results$/);
+  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await page.getByRole("button", { name: "Add month" }).click();
+  const plan = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan);
+  await page.getByRole("link", { name: "Back to analysis" }).click();
+  await insurance.fill("-1");
+  let confirmations = 0;
+  page.on("dialog", async (dialog) => { confirmations++; await dialog.accept(); });
+  await page.getByRole("button", { name: "Re-lock plan and track actuals" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+  expect(confirmations).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan)).toEqual(plan);
+
+  await insurance.fill("2600");
+  await page.getByRole("button", { name: "Re-lock plan and track actuals" }).click();
+  await expect(page).toHaveURL(/\/performance$/);
+  expect(confirmations).toBe(1);
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!));
+  expect(state.plan.inputs.annualInsurance).toBe(260000);
+  expect(state.actuals).toHaveLength(1);
+});

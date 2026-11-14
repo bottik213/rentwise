@@ -40,6 +40,14 @@ describe("underwriting: edge cases", () => {
     expect(underwrite(with_({ annualInterestRate: 0 })).monthlyPI).toBe(52_083);
   });
 
+  it.each([1e-8, 1e-12, 1e-16, Number.MIN_VALUE])("near-zero interest %s stays finite and approaches the zero-rate payment", (annualRate) => {
+    expect(monthlyPayment(18_750_000, annualRate, 30)).toBe(52_083);
+    const u = underwrite(with_({ annualInterestRate: annualRate }));
+    expect(u.monthlyPI).toBe(52_083);
+    expect(u.reserveAdjustedCashFlow).toBe(79_197);
+    expect(Number.isFinite(u.breakEvenRent)).toBe(true);
+  });
+
   it("all-cash → no loan, no P&I, full price in cash invested", () => {
     const u = underwrite(with_({ allCash: true }));
     expect([u.loanAmount, u.monthlyPI]).toEqual([0, 0]);

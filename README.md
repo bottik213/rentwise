@@ -110,7 +110,9 @@ tests/
 
 Layers stay separate: finance logic → validation → state → UI. Storage writes are validated before they are saved,
 so an invalid edit can never corrupt saved data. Corrupt or old saved data falls back to an empty state instead of
-crashing.
+crashing. Storage failures show a notice on every page with retry controls. Unsaved changes remain available for
+JSON export, and closing or reloading the tab prompts before discarding them. Failed deletion preserves the current
+data until the browser confirms it was removed.
 
 ## Local setup
 
@@ -128,7 +130,7 @@ None. The app has no API keys, server secrets or external services.
 ## Tests
 
 ```bash
-npm test             # Vitest: finance engine, explanation, storage guard (38 tests)
+npm test             # Vitest: finance engine, explanation, storage guard (48 tests)
 npm run typecheck
 npm run lint
 
@@ -153,13 +155,17 @@ Firefox. Every expected number below was computed by hand, not copied from the a
 - "Mark as owned", then a month with a $1,800 repair, with variance reconciling to −$1,800.00;
 - data persisting after a reload;
 - re-saving a month replacing it instead of double-counting;
-- loading the example never silently replacing recorded months;
+- invalid property and actuals entries blocking submission until corrected or reset;
+- disabled financing fields allowing all-cash purchases;
+- loading the example never silently replacing edited assumptions, targets or recorded months;
 - JSON export downloading the saved data;
+- storage failures, exporting unsaved actuals, and retrying loads, saves and deletion;
+- unread saved data staying protected until a successful load, and invalid Quick assumptions blocking plan locking;
 - the empty states and clearing data;
 - no console errors and no horizontal scroll at 390px.
 
-The Vitest storage tests check that an invalid edit is never saved and that corrupt saved data loads as an empty
-state instead of crashing.
+The Vitest storage tests check invalid edits, corrupt saved data, storage access and quota failures, and retrying
+without losing the latest valid changes or overwriting data that could not be loaded.
 
 ## Limitations
 

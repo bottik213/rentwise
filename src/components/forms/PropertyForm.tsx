@@ -39,7 +39,7 @@ export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
       onSubmit={(e) => {
         e.preventDefault();
         setTried(true);
-        if (parsed.success) onSubmit(parsed.data);
+        if (e.currentTarget.reportValidity() && parsed.success) onSubmit(parsed.data);
       }}
       className="flex flex-col gap-10"
     >

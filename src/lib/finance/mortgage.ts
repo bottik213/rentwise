@@ -7,5 +7,6 @@ export function monthlyPayment(loan: Cents, annualRate: Rate, termYears: number)
   const n = Math.round(termYears * 12);
   if (n <= 0) throw new RangeError("monthlyPayment: loan term must be at least 1 month");
   const r = annualRate / 12;
-  return roundCents(r === 0 ? loan / n : (loan * r) / (1 - Math.pow(1 + r, -n)));
+  // log1p/expm1 preserve precision when r is so small that 1 + r rounds to 1.
+  return roundCents(r === 0 ? loan / n : (loan * r) / -Math.expm1(-n * Math.log1p(r)));
 }

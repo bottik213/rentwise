@@ -25,7 +25,8 @@ $250,000 duplex renting for $2,450/mo.
 - **Units are shown inside each field**: `/mo` is per month, `/yr` is per year, `% of rent`, `% of price`, and so
   on. Annual amounts (property tax, insurance) are divided by 12 for monthly figures.
 - **Invalid entries** turn the field red and show what's allowed ("Between 0 and 100"). The last valid value stays
-  in use until you fix the entry, so a typo never breaks the numbers.
+  in use for calculations until you fix the entry. Property and actuals forms cannot be submitted while an enabled
+  field is invalid.
 - **Prefilled percentages are illustrative assumptions, not local market data.** Replace them with your own numbers.
 
 ---
@@ -133,6 +134,8 @@ briefly (or jump straight to the new value if your device has reduced motion tur
 | **Mark as owned** | Locks a snapshot of the current inputs as **the plan** and opens the Actuals screen. Later edits to the analysis don't change a locked plan. If a plan with recorded months already exists, the button reads **Re-lock plan and track actuals** and asks before replacing the plan. Your recorded months are kept and compared against the new plan. |
 
 ### 3.2 Quick assumptions (left sidebar)
+
+Fix any invalid Quick assumptions before choosing **Mark as owned** or **Re-lock plan and track actuals**.
 
 Nine of the most influential inputs, editable without leaving the page: purchase price, scheduled rent, vacancy,
 interest rate (disabled for all-cash), insurance, property tax, maintenance, management and CapEx reserve. They
@@ -266,6 +269,12 @@ forecast $196. Total variance is **−$1,800.00**, and the whole difference is a
 
 - Data is saved automatically in **this browser only** (localStorage). There is no account, server or bank
   connection, and nothing is uploaded.
+- If browser storage is full or blocked, a notice explains which operation failed and offers a retry. Unsaved
+  changes remain in this tab and can be downloaded with **Export current data (JSON)**. Export before closing or
+  reloading; the browser also prompts while changes are unsaved. A failed **Clear my data** keeps your current
+  data available until deletion succeeds.
+- If saved data could not be loaded, changes are blocked until **Try loading again** succeeds. This protects
+  existing properties and recorded months from being replaced by an empty starting state.
 - Clearing your browser's site data or switching browsers or devices starts fresh, so export to keep a copy.
 - Loading the example property asks before replacing your own property or any recorded months. An untouched example
   with no months is reset without asking. Saving the full Inputs form makes the property yours: the "Synthetic
