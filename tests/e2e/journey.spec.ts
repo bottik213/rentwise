@@ -136,3 +136,18 @@ test("export downloads the saved data as JSON", async ({ page }) => {
   const saved = JSON.parse(await fs.readFile((await download.path())!, "utf8"));
   expect(saved.property.nickname).toBe("Example duplex (synthetic)");
 });
+
+test("loading the example never silently replaces recorded months", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await page.getByRole("button", { name: "Add month" }).click();
+
+  await page.goto("/");
+  let asked = "";
+  page.once("dialog", (d) => { asked = d.message(); void d.dismiss(); });
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  expect(asked).toContain("1 recorded month");
+  await expect(page).toHaveURL(/\/$/); // cancel stays put
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals.length)).toBe(1);
+});

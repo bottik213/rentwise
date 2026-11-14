@@ -8,7 +8,7 @@ import { setAppState } from "@/lib/storage";
 import { AnimatedNumber } from "./AnimatedNumber";
 
 type Def = Pick<FieldDef, "label" | "kind" | "suffix" | "help" | "min" | "max">;
-export const CONSTRAINT_LABEL: Record<ConstraintKey, string> = {
+const CONSTRAINT_LABEL: Record<ConstraintKey, string> = {
   minMonthlyCashFlow: "minimum cash flow",
   minCashOnCash: "minimum cash-on-cash",
   maxUpfrontCash: "maximum upfront cash",
@@ -72,8 +72,8 @@ export function OfferCeiling({ property, constraints, conservative }: { property
             <p className="mt-2 text-2xl font-medium tracking-tight text-bad">No price works</p>
             <p className="mt-3 text-sm leading-relaxed">
               Even at $1, the {list(r.failingConstraints)} target fails
-              {r.failingScenario === "conservative" ? " in the conservative scenario" : ""}. Rent and operating costs alone
-              can&apos;t meet it. Loosen a target, or revisit rent and costs.
+              {r.failingScenario === "conservative" ? " in the conservative scenario" : ""}. Loosen a target, or revisit
+              rent, costs and financing.
             </p>
           </>
         )}

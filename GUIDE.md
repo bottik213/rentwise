@@ -267,7 +267,9 @@ forecast $196. Total variance is **−$1,800.00**, and the whole difference is a
 - Data is saved automatically in **this browser only** (localStorage). There is no account, server or bank
   connection, and nothing is uploaded.
 - Clearing your browser's site data or switching browsers or devices starts fresh, so export to keep a copy.
-- Loading the example property asks before replacing your own property (the example itself is reset without asking).
+- Loading the example property asks before replacing your own property or any recorded months. An untouched example
+  with no months is reset without asking. Saving the full Inputs form makes the property yours: the "Synthetic
+  example" label goes away.
 
 ---
 

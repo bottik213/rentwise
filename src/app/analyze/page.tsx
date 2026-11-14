@@ -40,7 +40,8 @@ export default function AnalyzePage() {
         submitLabel={editing ? "Save and view analysis" : "Analyze property"}
         onSubmit={(property) => {
           setAppState((x) =>
-            editing ? { ...x, property } : { ...x, property, isExample: false, plan: null, actuals: [] },
+            // Saving the full form makes it your property: it is no longer labeled synthetic or reset without asking.
+            editing ? { ...x, property, isExample: false } : { ...x, property, isExample: false, plan: null, actuals: [] },
           );
           router.push("/results");
         }}

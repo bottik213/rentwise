@@ -27,13 +27,11 @@ export function monthlyForecast(u: Underwriting): Record<ActualCategory, Cents> 
 export function variance(u: Underwriting, actuals: ActualMonth[]): VarianceReport {
   const months = actuals.length;
   const perMonth = monthlyForecast(u);
+  for (const m of actuals) assertFinite(m, `actuals ${m.month}`);
 
   const contributors = ACTUAL_CATEGORIES.map((category) => {
     const forecast = perMonth[category] * months;
-    const actual = actuals.reduce((sum, m) => {
-      assertFinite(m, `actuals ${m.month}`);
-      return sum + m[category];
-    }, 0);
+    const actual = actuals.reduce((sum, m) => sum + m[category], 0);
     const impact = INCOME.has(category) ? actual - forecast : forecast - actual;
     return { category, forecast, actual, impact };
   });

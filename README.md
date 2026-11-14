@@ -104,8 +104,8 @@ src/
     format.ts          currency/percent formatting (true minus signs, tabular numbers)
   data/demo-property.ts  synthetic example (doubles as the reference test fixture)
 tests/
-  finance/             Vitest: engine, edge cases, reconciliation, explanation
-  e2e/                 Playwright: the full journey at 1440px and 390px
+  finance/             Vitest: engine, edge cases, reconciliation, explanation, storage guard
+  e2e/                 Playwright: the full journey on 5 browser setups
 ```
 
 Layers stay separate: finance logic → validation → state → UI. Storage writes are validated before they are saved,
@@ -128,24 +128,33 @@ None. The app has no API keys, server secrets or external services.
 ## Tests
 
 ```bash
-npm test             # Vitest finance suite (36 tests)
+npm test             # Vitest: finance engine, explanation, storage guard (38 tests)
 npm run typecheck
 npm run lint
 
-npx playwright install chromium   # once
-npm run test:e2e     # builds, starts a fresh server, runs the journey on desktop and mobile
-E2E_BASE_URL=https://your-deployment npm run test:e2e   # same journey against production
+npx playwright install chromium webkit firefox   # once
+npm run test:e2e     # builds, starts a fresh server, runs every test on 5 browser setups
+E2E_BASE_URL=https://your-deployment npm run test:e2e   # same suite against production
 ```
 
-The e2e journey covers:
+The e2e suite runs on Chromium (desktop 1440px and mobile 390px), desktop Safari, iPhone (WebKit) and desktop
+Firefox. Every expected number below was computed by hand, not copied from the app. It covers:
 - the no-sign-up example and its numbers;
-- the numbers changing when an input changes;
-- the offer ceiling and its infeasible state;
+- the numbers changing when an input changes (vacancy 5% → 10%: $65.36 → −$47.34);
+- the offer ceiling ($223,017 at ≥ $200/mo) and its infeasible state;
+- "must also pass the conservative scenario" lowering the ceiling to $158,334;
+- an all-cash purchase: no P&I, "not limited by your targets", then cash-on-cash ceilings of $176,621 (8%) and
+  $291,332 (5%);
 - "Mark as owned", then a month with a $1,800 repair, with variance reconciling to −$1,800.00;
 - data persisting after a reload;
 - re-saving a month replacing it instead of double-counting;
+- loading the example never silently replacing recorded months;
+- JSON export downloading the saved data;
 - the empty states and clearing data;
 - no console errors and no horizontal scroll at 390px.
+
+The Vitest storage tests check that an invalid edit is never saved and that corrupt saved data loads as an empty
+state instead of crashing.
 
 ## Limitations
 
