@@ -137,6 +137,11 @@ npm run test:e2e     # builds, starts a fresh server, runs every test on 5 brows
 E2E_BASE_URL=https://your-deployment npm run test:e2e   # same suite against production
 ```
 
+GitHub Actions runs `.github/workflows/ci.yml` on every push, pull requests targeting `main`, and manual runs
+from the Actions tab. It checks lint, TypeScript and unit tests independently, then builds the production app and
+runs all five Playwright configurations on Node.js 22. Browser reports and failure traces are available as the
+`playwright-results` artifact for 14 days. No repository secrets are required.
+
 The e2e suite runs on Chromium (desktop 1440px and mobile 390px), desktop Safari, iPhone (WebKit) and desktop
 Firefox. Every expected number below was computed by hand, not copied from the app. It covers:
 - the no-sign-up example and its numbers;
@@ -164,7 +169,6 @@ state instead of crashing.
 - Scenarios are illustrative percentage adjustments, not forecasts. There is no appreciation, tax or depreciation
   modeling.
 - The variance explanation is rule-based. There is no AI explanation yet.
-- End-to-end tests run in Chromium only.
 
 ## Roadmap
 
