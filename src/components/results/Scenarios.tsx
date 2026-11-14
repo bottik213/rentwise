@@ -10,7 +10,7 @@ const ADJ: [key: keyof ScenarioAdjustments, label: string, unit: string, min: nu
   ["vacancyPts", "Vacancy", "pts", -100, 100],
   ["maintenancePts", "Maintenance", "pts", -100, 100],
   ["capexPts", "CapEx reserve", "pts", -100, 100],
-  ["fixedCostChangePct", "Fixed costs (tax, insurance, HOA, utilities)", "%", -100, 500],
+  ["fixedCostChangePct", "Fixed costs (tax, insurance, HOA, utilities, other)", "%", -100, 500],
 ];
 const COLS: [ScenarioName, string][] = [["conservative", "Conservative"], ["base", "Base"], ["optimistic", "Optimistic"]];
 

@@ -19,13 +19,23 @@ export function VarianceWaterfall({ r }: { r: VarianceReport }) {
   const data: Datum[] = [
     { name: "Forecast", full: "Forecast cash flow before CapEx", range: [0, run], fill: C.forecast, label: usd(run), note: "Plan" },
   ];
-  for (const c of r.contributors.filter((c) => c.impact !== 0).sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))) {
-    data.push({
-      name: SHORT[c.category], full: CATEGORY_LABEL[c.category], range: [run, run + c.impact],
-      fill: c.impact > 0 ? C.good : C.bad, label: usd(c.impact, { signed: true }),
-      note: `${c.impact > 0 ? "Better" : "Worse"} than plan · ${usd(c.actual, { exact: true })} actual vs. ${usd(c.forecast, { exact: true })} planned`,
-    });
-    run += c.impact;
+  const addStep = (name: string, full: string, impact: number, note: string) => {
+    data.push({ name, full, range: [run, run + impact], fill: impact > 0 ? C.good : impact < 0 ? C.bad : C.muted, label: usd(impact, { signed: true }), note });
+    run += impact;
+  };
+  const movers = r.contributors.filter((c) => c.impact !== 0).sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+  // Phones fit ~6 bars before tick labels collide. shortcut: read once per render, not on resize; fine for a re-rendering form page.
+  const wide = typeof window === "undefined" || matchMedia("(min-width: 640px)").matches;
+  const maxSteps = wide ? 6 : 3;
+  const shown = movers.length > maxSteps + 1 ? movers.slice(0, maxSteps) : movers;
+  for (const c of shown) {
+    addStep(SHORT[c.category], CATEGORY_LABEL[c.category], c.impact,
+      `${c.impact > 0 ? "Better" : "Worse"} than plan · ${usd(c.actual, { exact: true })} actual vs. ${usd(c.forecast, { exact: true })} planned`);
+  }
+  const rest = movers.slice(shown.length);
+  if (rest.length) {
+    // Folded, not dropped: the steps still land exactly on the actual bar.
+    addStep("Other", `${rest.length} smaller items`, rest.reduce((s, c) => s + c.impact, 0), rest.map((c) => CATEGORY_LABEL[c.category]).join(", "));
   }
   data.push({ name: "Actual", full: "Actual cash flow before CapEx", range: [0, r.actualCashFlowBeforeCapex], fill: C.actual, label: usd(r.actualCashFlowBeforeCapex), note: "Recorded" });
   const reduceMotion = typeof window !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;

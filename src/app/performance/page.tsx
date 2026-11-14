@@ -50,6 +50,7 @@ export default function PerformancePage() {
   const form = draft ?? blank(actuals.length ? nextMonth(actuals[actuals.length - 1].month) : plan.lockedAt.slice(0, 7));
   const replacing = actuals.some((a) => a.month === form.month);
   const valid = ActualMonthSchema.safeParse(form).success;
+  const monthOk = /^\d{4}-(0[1-9]|1[0-2])$/.test(form.month);
   const r = variance(u, actuals);
   const contributorSum = r.contributors.reduce((t, c) => t + c.impact, 0);
 
@@ -180,18 +181,26 @@ export default function PerformancePage() {
           <p className="-mt-2 text-xs text-muted">Prefilled with the plan&apos;s monthly forecast. Overwrite with what was actually received and paid.</p>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Month
+            {/* Safari and Firefox desktop render type="month" as plain text, so the format is spelled out. */}
             <input
               type="month"
               required
+              placeholder="YYYY-MM"
+              pattern="\d{4}-(0[1-9]|1[0-2])"
+              aria-invalid={!monthOk}
+              aria-describedby="month-help"
               value={form.month}
-              onChange={(e) => setDraft({ ...form, month: e.target.value })}
-              className="num h-11 rounded-md border border-line bg-bg px-3 font-normal outline-none hover:border-muted focus:border-ink focus:ring-1 focus:ring-ink"
+              onChange={(e) => setDraft({ ...form, month: e.target.value.trim() })}
+              className={`num h-11 rounded-md border bg-bg px-3 font-normal outline-none hover:border-muted focus:border-ink focus:ring-1 focus:ring-ink ${monthOk ? "border-line" : "border-bad"}`}
             />
+            <span id="month-help" className={`text-xs font-normal ${monthOk ? "sr-only" : "text-bad"}`}>
+              Use year and month, like 2026-11.
+            </span>
           </label>
           {FIELD_KEYS.map((k) => (
             <NumberField
               key={`${form.month}-${k}`}
-              def={{ label: k === "capex" ? "CapEx spent" : CATEGORY_LABEL[k], kind: "money", help: HELP[k] ?? "", min: 0, max: 100_000_000 }}
+              def={{ label: k === "capex" ? "CapEx spent" : CATEGORY_LABEL[k], kind: "money", help: HELP[k] ?? "", min: 0, max: 1_000_000 }}
               value={form[k]}
               compact={!HELP[k]}
               onCommit={(v: Cents) => setDraft({ ...form, [k]: v })}

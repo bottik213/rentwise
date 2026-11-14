@@ -10,11 +10,14 @@ export function TryExampleButton({ className }: { className: string }) {
       type="button"
       className={className}
       onClick={() => {
+        let loaded = false;
         setAppState((s) => {
-          const keep = !s.property || s.isExample || !s.actuals.length || confirm("Loading the example replaces your property and its actuals. Continue?");
-          return keep ? { ...EMPTY_STATE, property: DEMO_PROPERTY, isExample: true } : s;
+          // Your own property is never replaced silently; the example itself can be reset freely.
+          const months = s.actuals.length ? ` and its ${s.actuals.length} recorded month(s)` : "";
+          loaded = !s.property || s.isExample || confirm(`Loading the example replaces your property${months}. Continue?`);
+          return loaded ? { ...EMPTY_STATE, property: DEMO_PROPERTY, isExample: true } : s;
         });
-        router.push("/results");
+        if (loaded) router.push("/results");
       }}
     >
       Try the example property

@@ -92,3 +92,47 @@ test("empty states and clearing data", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   expect(await page.evaluate(() => localStorage.getItem("rentwise:v1"))).toBeNull();
 });
+
+test("all-cash purchase: no P&I, price-independent cash flow, cash-on-cash ceiling", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await page.getByRole("link", { name: "All inputs" }).click();
+  await page.getByLabel("All-cash purchase", { exact: false }).check();
+  await page.getByRole("button", { name: "Save and view analysis" }).click();
+
+  // Hand-computed: NOI $1,435.30 − P&I $0 − CapEx reserve $122.50.
+  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
+  await expect(page.getByLabel("Interest rate", { exact: true })).toBeDisabled();
+  // Cash flow doesn't depend on price, so a $0 cash-flow target can't limit it.
+  await expect(page.getByText("Not limited by your targets")).toBeVisible();
+
+  // CoC = $15,753.60/yr ÷ (P + 3%·P + $15,000) ≥ 8% → P ≤ $176,621.36.
+  await page.getByRole("checkbox", { name: "Use Min. cash-on-cash" }).check();
+  await expect(page.getByText(/Limited by\s*minimum cash-on-cash/)).toBeVisible();
+  await expect(page.getByText("$176,621", { exact: true }).last()).toBeAttached();
+  // At 5%: P ≤ $291,332.04.
+  await page.getByLabel("Min. cash-on-cash", { exact: true }).fill("5");
+  await expect(page.getByText("$291,332", { exact: true }).last()).toBeAttached();
+});
+
+test("must also pass the conservative scenario lowers the ceiling", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await page.getByLabel("Min. cash flow after reserves", { exact: true }).fill("200");
+  await expect(page.getByText("$223,017", { exact: true }).last()).toBeAttached();
+
+  // Conservative: NOI $1,176.25, reserve $186.20 → P&I ≤ $790.05 → price ≤ $158,334.
+  await page.getByRole("checkbox", { name: "Must also pass the conservative scenario" }).check();
+  await expect(page.getByText(/Limited by\s*minimum cash flow\s*in the conservative scenario/)).toBeVisible();
+  await expect(page.getByText("$158,334", { exact: true }).last()).toBeAttached();
+});
+
+test("export downloads the saved data as JSON", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export my data (JSON)" }).click()]);
+  expect(download.suggestedFilename()).toBe("rentwise-data.json");
+  const fs = await import("node:fs/promises");
+  const saved = JSON.parse(await fs.readFile((await download.path())!, "utf8"));
+  expect(saved.property.nickname).toBe("Example duplex (synthetic)");
+});

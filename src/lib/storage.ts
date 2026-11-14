@@ -70,5 +70,6 @@ export function exportAppData(): void {
   const blob = new Blob([JSON.stringify(getSnapshot(), null, 2)], { type: "application/json" });
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "rentwise-data.json" });
   a.click();
-  URL.revokeObjectURL(a.href);
+  // Revoking in the same tick can cancel the download in Safari/Firefox.
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
