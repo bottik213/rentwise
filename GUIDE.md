@@ -69,7 +69,7 @@ never monthly expenses.
 
 | Input | Unit | Allowed | What it is | What it changes |
 |---|---|---|---|---|
-| **Closing costs** | % of price **or** $ | 0 – 20% or $0 – $10,000,000 | Lender, title, escrow and recording fees. 2–5% is common. Use the **% / $** toggle under the field to switch units; the value converts automatically. | Cash invested. In % mode it also changes when the price changes, including inside the offer-ceiling search. |
+| **Closing costs** | % of price **or** $ | 0 – 20% or $0 – $10,000,000 | Lender, title, escrow and recording fees. 2–5% is common. Use the **% / $** switch beside the label to change units; the value converts automatically. | Cash invested. In % mode it also changes when the price changes, including inside the offer-ceiling search. |
 | **Initial repairs** | $ | $0 – $10,000,000 | Work needed before the first tenant moves in. | Cash invested. |
 | **Cash reserve** | $ | $0 – $10,000,000 | Cash you set aside at purchase for surprises. | Cash invested. It is money you still hold, never an expense. |
 
@@ -144,6 +144,9 @@ From the top, the page shows:
 
 ### 3.2 Quick assumptions (left sidebar)
 
+On a phone, the sidebar opens as a panel from the bottom: tap **Edit assumptions** in the bar at the bottom of
+the screen.
+
 Fix any invalid Quick assumptions before choosing **Mark as owned** or **Re-lock plan and track actuals**.
 
 Nine of the most influential inputs, editable without leaving the page: purchase price, scheduled rent, vacancy,
@@ -178,12 +181,13 @@ assumptions". It is not an appraisal, a safe price or a recommendation to buy.
 
 | Target | Unit | Allowed | Meaning |
 |---|---|---|---|
-| **Min. cash flow after reserves** | $/mo | −$100,000 to $1,000,000 | Cash flow after reserves must be at least this much. On by default at $0. Ticking it on starts at $200. |
-| **Min. cash-on-cash** | %/yr | 0 – 100 | Annual cash-on-cash must be at least this. Ticking it on starts at 8%. |
-| **Max. upfront cash** | $ | $0 – $100,000,000 | Total cash invested must be at most this. Ticking it on starts at $100,000. |
+| **Min. cash flow after reserves** | $/mo | −$100,000 to $1,000,000 | Cash flow after reserves must be at least this much. On by default at $0. Switching it on starts at $200. |
+| **Min. cash-on-cash** | %/yr | 0 – 100 | Annual cash-on-cash must be at least this. Switching it on starts at 8%. |
+| **Max. upfront cash** | $ | $0 – $100,000,000 | Total cash invested must be at most this. Switching it on starts at $100,000. |
 | **Must also pass the conservative scenario** | checkbox | on / off | The price must meet your targets in the conservative scenario as well as the base case. |
 
-Tick a checkbox to switch a target on; untick it to ignore that target.
+Use the switch beside each target to turn it on; turn it off to ignore that target. While a target is off, its
+field shows the starting value greyed out.
 
 **How it's computed:** RentWise tries prices from $1 up to max(4 × asking, $2M), narrowing in to the nearest $1.
 At every candidate price it recomputes the loan, down payment and percentage closing costs. **Rent, property tax
