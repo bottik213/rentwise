@@ -1,5 +1,5 @@
 "use client";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { AssumptionSource } from "@/lib/finance/types";
 import { parseNumber } from "@/lib/validation";
 import { type FieldDef, toDisplay, toEngine } from "./fields";
@@ -27,10 +27,16 @@ interface Props {
 /** Text input that commits only valid values; the draft (and its error) stays visible while invalid. */
 export function NumberField({ def, value, onCommit, disabled, source, onSource, compact }: Props) {
   const id = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? (value === undefined ? "" : toDisplay(def.kind, value));
   const result = draft === null ? null : validate(def, draft);
   const error = result && "error" in result ? result.error : value === undefined && draft !== null ? "Required" : null;
+
+  // Invalid drafts must block form submission even while calculations keep the last valid value.
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(error ?? "");
+  }, [error]);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -54,7 +60,9 @@ export function NumberField({ def, value, onCommit, disabled, source, onSource, 
       >
         {def.kind === "money" && <span className="mr-1 text-muted" aria-hidden>$</span>}
         <input
+          ref={inputRef}
           id={id}
+          required
           inputMode="decimal"
           autoComplete="off"
           disabled={disabled}

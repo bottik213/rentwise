@@ -26,6 +26,7 @@ const nextMonth = (m: string) => {
 export default function PerformancePage() {
   const s = useAppState();
   const [draft, setDraft] = useState<ActualMonth | null>(null);
+  const [formRevision, setFormRevision] = useState(0);
   if (!s) return <PageSkeleton />;
 
   if (!s.plan) {
@@ -173,6 +174,7 @@ export default function PerformancePage() {
         </section>
 
         <form
+          key={formRevision}
           aria-labelledby="record"
           className="flex flex-col gap-4 lg:order-1"
           onSubmit={(e) => { e.preventDefault(); save(); }}
@@ -211,7 +213,7 @@ export default function PerformancePage() {
             <button type="submit" disabled={!valid} className="h-11 flex-1 rounded-md bg-ink px-5 text-sm font-medium text-bg press hover:bg-ink/85 disabled:opacity-50">
               {replacing ? "Save changes" : "Add month"}
             </button>
-            {draft && <button type="button" onClick={() => setDraft(null)} className="press h-11 rounded-md border border-line px-4 text-sm hover:border-ink">Reset</button>}
+            <button type="button" onClick={() => { setDraft(null); setFormRevision((n) => n + 1); }} className="press h-11 rounded-md border border-line px-4 text-sm hover:border-ink">Reset</button>
           </div>
         </form>
       </div>

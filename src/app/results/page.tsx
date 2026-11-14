@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { DataControls } from "@/components/DataControls";
 import { TryExampleButton } from "@/components/TryExampleButton";
 import { FIELDS } from "@/components/forms/fields";
@@ -21,6 +21,7 @@ const QUICK = ["purchasePrice", "monthlyRent", "vacancyPct", "annualInterestRate
 export default function ResultsPage() {
   const s = useAppState();
   const router = useRouter();
+  const quickForm = useRef<HTMLFormElement>(null);
   if (!s) return <PageSkeleton />;
   const p = s.property;
 
@@ -42,9 +43,10 @@ export default function ResultsPage() {
   const setProp = (patch: Partial<PropertyInputs>) => setAppState((x) => (x.property ? { ...x, property: { ...x.property, ...patch } } : x));
 
   const markOwned = () => {
+    if (!quickForm.current?.reportValidity()) return;
     if (s.plan && s.actuals.length && !confirm(`Lock these inputs as the new plan? Your ${s.actuals.length} recorded month(s) will be compared against them.`)) return;
-    setAppState((x) => ({ ...x, plan: { inputs: x.property!, lockedAt: new Date().toISOString() } }));
-    router.push("/performance");
+    const accepted = setAppState((x) => ({ ...x, plan: { inputs: x.property!, lockedAt: new Date().toISOString() } }));
+    if (accepted) router.push("/performance");
   };
 
   return (
@@ -64,19 +66,21 @@ export default function ResultsPage() {
 
       <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside aria-label="Quick assumptions" className="lg:sticky lg:top-6 lg:self-start">
-          <h2 className="text-sm font-medium">Quick assumptions</h2>
-          <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-1">
-            {QUICK.map((k) => (
-              <NumberField
-                key={k}
-                def={FIELDS[k]}
-                value={p[k]}
-                compact
-                disabled={k === "annualInterestRate" && p.allCash}
-                onCommit={(v) => setProp({ [k]: v })}
-              />
-            ))}
-          </div>
+          <form ref={quickForm} noValidate onSubmit={(e) => e.preventDefault()}>
+            <h2 className="text-sm font-medium">Quick assumptions</h2>
+            <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-1">
+              {QUICK.map((k) => (
+                <NumberField
+                  key={k}
+                  def={FIELDS[k]}
+                  value={p[k]}
+                  compact
+                  disabled={k === "annualInterestRate" && p.allCash}
+                  onCommit={(v) => setProp({ [k]: v })}
+                />
+              ))}
+            </div>
+          </form>
         </aside>
 
         <div className="flex min-w-0 flex-col gap-12">

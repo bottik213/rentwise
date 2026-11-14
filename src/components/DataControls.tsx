@@ -14,8 +14,7 @@ export function DataControls() {
         className={btn}
         onClick={() => {
           if (!confirm("Delete the property, plan and actuals stored in this browser? This can't be undone.")) return;
-          clearAppData();
-          router.push("/");
+          if (clearAppData()) router.push("/");
         }}
       >
         Clear my data
