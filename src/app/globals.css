@@ -119,6 +119,12 @@
     caret-color: var(--ink);
     accent-color: var(--spruce);
   }
+
+  /* Keep native popup text and backgrounds paired in both color schemes. */
+  select option {
+    background-color: var(--card);
+    color: var(--ink);
+  }
 }
 
 /* ---------- Type ---------- */
