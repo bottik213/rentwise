@@ -15,8 +15,28 @@ async function noHorizontalScroll(page: Page) {
 }
 
 const row = (page: Page, name: RegExp) => page.getByRole("row", { name });
-const statementRow = (page: Page, name: RegExp) =>
-  page.getByRole("table", { name: "Monthly and annual cash flow statement" }).getByRole("row", { name });
+
+/** The full statement sits behind "Show full statement" on the analysis page; open it first. */
+async function statementRow(page: Page, name: RegExp) {
+  const details = page.locator("details", { hasText: "Show full statement" });
+  if (!(await details.evaluate((d) => (d as HTMLDetailsElement).open))) await details.locator("summary").click();
+  return page.getByRole("table", { name: "Monthly and annual cash flow statement" }).getByRole("row", { name });
+}
+
+/** On a phone the quick assumptions live in a bottom sheet. Both helpers do nothing on desktop. */
+const sheet = (page: Page) => page.locator('aside[aria-label="Quick assumptions"]');
+async function openQuick(page: Page) {
+  await expect(sheet(page)).toBeAttached(); // the analysis has loaded
+  if (await page.locator("aside.open").count()) return;
+  const open = page.getByRole("button", { name: "Edit assumptions" });
+  if (await open.isVisible()) await open.click();
+}
+async function closeQuick(page: Page) {
+  const done = page.getByRole("button", { name: "Done" });
+  if (!(await page.locator("aside.open").count()) || !(await done.isVisible())) return;
+  await done.click();
+  await expect(sheet(page)).toBeHidden(); // wait out the slide-down before the next step
+}
 
 test("analyze → stress → offer ceiling → actuals → variance", async ({ page }) => {
   const errors = watchConsole(page);
@@ -26,14 +46,18 @@ test("analyze → stress → offer ceiling → actuals → variance", async ({ p
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await expect(page.getByText("Synthetic example")).toBeVisible();
-  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
   await noHorizontalScroll(page);
 
   // 2. Numbers change with input: vacancy 5% → 10% turns cash flow negative (hand-computed: −$47.34).
+  await openQuick(page);
   await page.getByLabel("Vacancy", { exact: true }).fill("10");
-  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("−$47.34");
+  await closeQuick(page);
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("−$47.34");
+  await openQuick(page);
   await page.getByLabel("Vacancy", { exact: true }).fill("5");
-  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
+  await closeQuick(page);
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
 
   // 3. Offer ceiling, then the infeasible state.
   const minCf = page.getByLabel("Min. cash flow after reserves", { exact: true });
@@ -55,7 +79,7 @@ test("analyze → stress → offer ceiling → actuals → variance", async ({ p
   await expect(row(page, /^Total variance/)).toContainText("−$1,800.00");
   await expect(row(page, /^Repairs & maintenance/)).toContainText("−$1,800.00");
   await expect(page.getByText(/Repairs & maintenance: .* −\$1,800\.00 to cash flow\./)).toBeVisible();
-  await expect(page.getByRole("img", { name: /Waterfall from forecast/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Effect on cash flow by category/ })).toBeVisible();
   await noHorizontalScroll(page);
 
   // 6. Actuals persist after refresh.
@@ -101,7 +125,7 @@ test("all-cash purchase: no P&I, price-independent cash flow, cash-on-cash ceili
   await page.getByRole("button", { name: "Save and view analysis" }).click();
 
   // Hand-computed: NOI $1,435.30 − P&I $0 − CapEx reserve $122.50.
-  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
   await expect(page.getByLabel("Interest rate", { exact: true })).toBeDisabled();
   // Cash flow doesn't depend on price, so a $0 cash-flow target can't limit it.
   await expect(page.getByText("Not limited by your targets")).toBeVisible();
@@ -156,6 +180,7 @@ test("property form blocks invalid drafts and saves corrected values", async ({ 
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("link", { name: "All inputs" }).click();
+  await expect(page).toHaveURL(/\/analyze$/); // the results sidebar also has an Insurance field
   const save = page.getByRole("button", { name: "Save and view analysis" });
   const insurance = page.getByLabel("Insurance", { exact: true });
 
@@ -197,13 +222,14 @@ test("disabled financing drafts do not block an all-cash purchase", async ({ pag
   await page.getByLabel("All-cash purchase", { exact: false }).check();
   await page.getByRole("button", { name: "Save and view analysis" }).click();
   await expect(page).toHaveURL(/\/results$/);
-  await expect(statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
 });
 
 test("actuals block invalid drafts, reset them, and save corrected amounts", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
+  await expect(page).toHaveURL(/\/performance$/); // the results sidebar also has an Insurance field
   const insurance = page.getByLabel("Insurance", { exact: true });
 
   await insurance.fill("garbage");
@@ -234,7 +260,10 @@ test("loading the example protects edited inputs, scenarios and targets", async 
   ];
 
   for (const [label, value] of edits) {
+    if (label === "Scheduled rent") await openQuick(page);
+    if (label.startsWith("Conservative")) await page.getByText("Edit scenario assumptions").click();
     await page.getByLabel(label, { exact: true }).fill(value);
+    await closeQuick(page);
     const saved = await page.evaluate(() => localStorage.getItem("rentwise:v1"));
     await page.goto("/");
     let asked = "";
@@ -264,31 +293,37 @@ test("invalid Quick assumptions block both locking and re-locking a plan", async
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
   const insurance = page.getByLabel("Insurance", { exact: true });
+  const markOwned = async (name: string) => {
+    await closeQuick(page);
+    await page.getByRole("button", { name }).click();
+  };
+  await openQuick(page);
   await insurance.fill("-1");
-  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await markOwned("Mark as owned");
   await expect(page).toHaveURL(/\/results$/);
-  await expect(insurance).toBeFocused();
+  await expect(insurance).toBeFocused(); // on a phone the sheet reopens so the bad field can take focus
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan)).toBeNull();
   await insurance.fill("");
-  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await markOwned("Mark as owned");
   await expect(page).toHaveURL(/\/results$/);
   await insurance.fill("2400");
   await insurance.press("Enter");
   await expect(page).toHaveURL(/\/results$/);
-  await page.getByRole("button", { name: "Mark as owned" }).click();
+  await markOwned("Mark as owned");
   await page.getByRole("button", { name: "Add month" }).click();
   const plan = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan);
   await page.getByRole("link", { name: "Back to analysis" }).click();
+  await openQuick(page);
   await insurance.fill("-1");
   let confirmations = 0;
   page.on("dialog", async (dialog) => { confirmations++; await dialog.accept(); });
-  await page.getByRole("button", { name: "Re-lock plan and track actuals" }).click();
+  await markOwned("Re-lock plan and track actuals");
   await expect(page).toHaveURL(/\/results$/);
   expect(confirmations).toBe(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan)).toEqual(plan);
 
   await insurance.fill("2600");
-  await page.getByRole("button", { name: "Re-lock plan and track actuals" }).click();
+  await markOwned("Re-lock plan and track actuals");
   await expect(page).toHaveURL(/\/performance$/);
   expect(confirmations).toBe(1);
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!));

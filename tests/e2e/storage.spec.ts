@@ -37,6 +37,7 @@ test("failed saves stay available for export and survive a successful retry", as
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
+  await expect(page).toHaveURL(/\/performance$/); // the results sidebar also has an Insurance field
   await fail(page, "save");
   await page.getByLabel("Insurance", { exact: true }).fill("260");
   await page.getByRole("button", { name: "Add month" }).click();
@@ -79,6 +80,9 @@ test("failed loads can be retried without replacing existing saved data", async 
   await simulateStorageFailures(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
+  await expect(page.locator('aside[aria-label="Quick assumptions"]')).toBeAttached();
+  const sheet = page.getByRole("button", { name: "Edit assumptions" });
+  if (await sheet.isVisible()) await sheet.click(); // phones: quick assumptions live in a bottom sheet
   await page.getByLabel("Scheduled rent", { exact: true }).fill("3000");
   const saved = await page.evaluate(() => localStorage.getItem("rentwise:v1"));
 
@@ -92,7 +96,7 @@ test("failed loads can be retried without replacing existing saved data", async 
   await recover(page);
   await warning.getByRole("button", { name: "Try loading again" }).click();
   await expect(warning).toHaveCount(0);
-  await expect(page.getByLabel("Scheduled rent", { exact: true })).toHaveValue("3000");
+  await expect(page.getByLabel("Scheduled rent", { exact: true })).toHaveValue("3,000"); // money fields show separators once saved
   expect(await page.evaluate(() => localStorage.getItem("rentwise:v1"))).toBe(saved);
 });
 

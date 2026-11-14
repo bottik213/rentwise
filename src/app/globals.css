@@ -1,103 +1,658 @@
 @import "tailwindcss";
 
-/* Direction: calm ink-on-paper fintech. Palette "warm-black-gold" (dealt by /design-taste-frontend), light reading.
-   Gold is never text (2.3:1 on white); it marks forecast. Ink marks actual. Blue/red = better/worse than plan. */
+/* RentWise design tokens. Spruce is the brand and primary action, brick is the one call to action per page,
+   blue is data, status colors only ever mean good / warning / bad and always come with an icon and a word. */
 :root {
-  --bg: #ffffff;
-  --surface: #f5f3ef;
-  --line: #e3dfd8;
-  --ink: #0c0a08;
-  --muted: #5c5b59;
-  --night: #0c0a08;
-  --gold: #c9a45a;
-  --gold-ink: #7a5c1e;
-  --good: #1c5cab;
-  --good-fill: #2a6fdb;
-  --bad: #b42f2f;
-  --bad-fill: #d03b3b;
+  color-scheme: light;
+  --paper: #f6f3ec;
+  --card: #ffffff;
+  --sunk: #efeae0;
+  --line: #ddd5c6;
+  --line-2: #c9c0af;
+  --ink: #1b211e;
+  --ink-2: #47504a;
+  --muted: #5c635d;
+  --spruce: #1e4d3b;
+  --spruce-hi: #163a2c;
+  --spruce-tint: #e1ebe4;
+  --on-spruce: #ffffff;
+  --brick: #a3442a;
+  --brick-hi: #8a3820;
+  --on-brick: #ffffff;
+  --data: #2f6dae;
+  --deduct: #8b8f86;
+  --good: #23704a;
+  --good-bg: #e2f0e7;
+  --warn: #8f5b00;
+  --warn-bg: #f7ecd6;
+  --warn-line: #e2c78f;
+  --bad: #b3261e;
+  --bad-bg: #f8e3e0;
+  --verdict: #173b2e;
+  --verdict-ink: #f3f1eb;
+  --tip: #1b211e;
+  --tip-ink: #f6f3ec;
+  --dock: #1b211e;
+  --dock-ink: #f6f3ec;
+  --shadow: 0 1px 2px rgba(27, 33, 30, 0.06), 0 4px 12px rgba(27, 33, 30, 0.05);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #111513;
+    --card: #19201c;
+    --sunk: #0d100f;
+    --line: #2c3631;
+    --line-2: #3a4640;
+    --ink: #f3f1eb;
+    --ink-2: #ced3cc;
+    --muted: #aeb5ae;
+    --spruce: #7fc4a1;
+    --spruce-hi: #9ad4b5;
+    --spruce-tint: #1f3329;
+    --on-spruce: #111513;
+    --brick: #e58a6b;
+    --brick-hi: #efa084;
+    --on-brick: #1b211e;
+    --data: #5a93d6;
+    --deduct: #7d847e;
+    --good: #6fcf97;
+    --good-bg: #173024;
+    --warn: #f0b755;
+    --warn-bg: #33270f;
+    --warn-line: #5a4318;
+    --bad: #ff8a80;
+    --bad-bg: #3a1a17;
+    --verdict: #1f3329;
+    --verdict-ink: #f3f1eb;
+    --tip: #f3f1eb;
+    --tip-ink: #111513;
+    --dock: #222b26;
+    --dock-ink: #f3f1eb;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-sunk: var(--sunk);
   --color-line: var(--line);
   --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
-  --color-night: var(--night);
-  --color-gold: var(--gold);
-  --color-gold-ink: var(--gold-ink);
+  --color-spruce: var(--spruce);
   --color-good: var(--good);
-  --color-good-fill: var(--good-fill);
   --color-bad: var(--bad);
-  --color-bad-fill: var(--bad-fill);
-  --font-sans: var(--font-schibsted);
-  --radius-sm: 2px;
-  --radius-md: 4px;
+  --font-sans: var(--font-public-sans);
 }
 
-/* Element defaults live in the base layer so utilities (e.g. outline-none on an input inside a
-   focus-styled field) can override them. Unlayered CSS would beat every Tailwind utility. */
 @layer base {
   body {
-    background: var(--bg);
+    background: var(--paper);
     color: var(--ink);
-    font-family: var(--font-sans), system-ui, sans-serif;
+    font-family: var(--font-public-sans), system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-
+  a {
+    color: var(--spruce);
+  }
+  a:hover {
+    color: var(--spruce-hi);
+  }
   :focus-visible {
-    outline: 2px solid var(--ink);
+    outline: 2px solid var(--spruce);
     outline-offset: 2px;
+    border-radius: 4px;
   }
-  /* An ink ring disappears on the dark hero. */
-  .bg-night :focus-visible {
-    outline-color: var(--gold);
-  }
-
-  /* Browser surfaces carry the palette too. */
   ::selection {
-    background: color-mix(in srgb, var(--gold) 35%, transparent);
+    background: var(--spruce-tint);
     color: var(--ink);
   }
   input,
   select {
     caret-color: var(--ink);
-    accent-color: var(--ink);
+    accent-color: var(--spruce);
   }
 }
 
+/* ---------- Type ---------- */
 .num {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.disp {
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-stretch: 112%;
+  font-variation-settings: "wdth" 112;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.neg {
+  color: var(--bad);
+}
+.pos {
+  color: var(--good);
 }
 
-/* Forecast fill: gold hatch, so forecast vs actual never relies on colour alone. */
-.hatch-forecast {
-  background: repeating-linear-gradient(135deg, var(--gold) 0 2px, transparent 2px 6px);
-  box-shadow: inset 0 0 0 1.5px var(--gold);
+/* ---------- Header ---------- */
+.top {
+  height: 64px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 20px;
+}
+.logo:hover {
+  color: var(--ink);
+}
+.nav {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+}
+.nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.nav a:hover {
+  background: var(--sunk);
+  color: var(--ink);
+}
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--spruce);
+  border-radius: 0;
+}
+.top-note {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--muted);
 }
 
-/* Pressable controls: instant scale feedback, colours ease on hover. */
-.press {
-  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, color 150ms ease, filter 150ms ease;
+/* ---------- Buttons, tags, badges ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font: 600 16px/1 var(--font-public-sans), sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 140ms var(--ease-out);
 }
-.press:active:not(:disabled) {
+.btn:active:not(:disabled) {
   transform: scale(0.97);
 }
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn .arr {
+  transition: transform 200ms var(--ease-out);
+}
+.btn:hover .arr {
+  transform: translateX(4px);
+}
+.btn-lg {
+  height: 52px;
+  padding: 0 24px;
+  font-size: 17px;
+}
+.btn-sm {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+.btn-primary {
+  background: var(--spruce);
+  color: var(--on-spruce);
+}
+.btn-primary:hover {
+  background: var(--spruce-hi);
+  color: var(--on-spruce);
+}
+.btn-cta {
+  background: var(--brick);
+  color: var(--on-brick);
+}
+.btn-cta:hover {
+  background: var(--brick-hi);
+  color: var(--on-brick);
+}
+.btn-quiet {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+.btn-quiet:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.lnk {
+  background: none;
+  border: 0;
+  padding: 0 8px;
+  min-height: 44px;
+  font: 500 14px var(--font-public-sans), sans-serif;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.lnk:hover {
+  color: var(--ink);
+}
+.lnk.danger {
+  color: var(--bad);
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge.good {
+  color: var(--good);
+  background: var(--good-bg);
+}
+.badge.warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.badge.bad {
+  color: var(--bad);
+  background: var(--bad-bg);
+}
+.badge.none {
+  color: var(--muted);
+  background: var(--sunk);
+}
 
-/* A result that swaps state (e.g. feasible → infeasible) fades in instead of popping. Remount with a key. */
-.enter {
-  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
-  @starting-style {
-    opacity: 0;
-    transform: translateY(4px);
+/* ---------- Cards and section heads ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.shead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.shead h2 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+.shead p {
+  margin: 0;
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+.note {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 12px 0 0;
+}
+
+/* ---------- Fields ---------- */
+.fld {
+  position: relative;
+  min-width: 0;
+}
+.flabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.flabel label {
+  cursor: default;
+}
+.ib {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 16px;
+  cursor: help;
+  flex: none;
+}
+.ib:hover {
+  color: var(--ink);
+}
+.src {
+  margin-left: auto;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px dashed var(--line-2);
+  border-radius: 6px;
+  background: transparent;
+  font: 500 12px var(--font-public-sans), sans-serif;
+  color: var(--muted);
+  cursor: pointer;
+}
+.src:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+.src.ok {
+  border-style: solid;
+  border-color: var(--good);
+  color: var(--good);
+}
+.inp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--card);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.inp:hover {
+  border-color: var(--muted);
+}
+.inp:focus-within {
+  border-color: var(--spruce);
+  box-shadow: 0 0 0 3px var(--spruce-tint);
+}
+.inp.err {
+  border-color: var(--bad);
+}
+.inp.off {
+  opacity: 0.55;
+}
+.inp input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: 500 16px var(--font-public-sans), sans-serif;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.inp input:focus-visible {
+  outline: 0;
+}
+.pre,
+.unit {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.ferr {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--bad);
+}
+.chk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--ink-2);
+  min-height: 44px;
+}
+.chk input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* ---------- Help bubbles ---------- */
+.tw {
+  position: relative;
+}
+.pop {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--tip);
+  color: var(--tip-ink);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out), visibility 0s linear 200ms;
+}
+.pop.up {
+  bottom: calc(100% + 6px);
+}
+.pop.down {
+  top: calc(100% + 8px);
+  transform: translateY(-4px);
+}
+.pop b {
+  font-weight: 600;
+}
+.pop p {
+  margin: 0;
+}
+.pop p + p {
+  margin-top: 8px;
+}
+/* A field's bubble opens from its ⓘ only (hover, keyboard focus or tap), never while you type in the input. */
+.tw.open > .pop,
+.tw:has(> .flabel .ib:focus-visible) > .pop,
+.tw:has(> .ib:focus-visible) > .pop,
+.tw.card-tip:focus-within > .pop {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tw:has(> .flabel .ib:hover) > .pop,
+  .tw:has(> .ib:hover) > .pop,
+  .tw.card-tip:hover > .pop {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: opacity 200ms var(--ease-out) 120ms, transform 200ms var(--ease-out) 120ms, visibility 0s linear 120ms;
   }
 }
 
-/* Sensitivity bars retarget smoothly as inputs change; scaleX keeps it on the compositor. */
-.bar {
-  transform-origin: left;
+/* ---------- Expanders ---------- */
+details.x {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+details.x summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--spruce);
+  list-style: none;
+}
+details.x summary::-webkit-details-marker {
+  display: none;
+}
+details.x summary svg {
   transition: transform 200ms var(--ease-out);
+}
+details.x[open] summary svg {
+  transform: rotate(90deg);
+}
+details.x[open] .xb {
+  animation: xin 200ms var(--ease-out);
+}
+@keyframes xin {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- Page footer ---------- */
+.pfoot {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+.pfoot p {
+  margin: 0;
+  max-width: 64ch;
+}
+.pfoot .dc {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* ---------- Storage alert ---------- */
+.notice {
+  border-bottom: 1px solid var(--warn-line);
+  background: var(--warn-bg);
+}
+.notice > div {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  font-size: 15px;
+}
+.notice p {
+  margin: 4px 0 0;
+}
+.notice .t {
+  margin: 0;
+  font-weight: 600;
+  color: var(--bad);
+}
+
+/* ---------- Skeleton ---------- */
+.skel {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px;
+  display: grid;
+  gap: 16px;
+}
+.skel span {
+  display: block;
+  height: 120px;
+  border-radius: 12px;
+  background: var(--sunk);
+}
+
+@media (max-width: 899px) {
+  .top {
+    padding: 0 16px;
+    gap: 16px;
+  }
+  .top-note {
+    display: none;
+  }
+  .nav {
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+  .nav a {
+    padding: 8px 10px;
+  }
+  .notice > div {
+    padding: 16px;
+  }
+  .skel {
+    padding: 24px 16px;
+  }
+}
+/* The logo already links home, so the Home tab is the one to drop when four tabs don't fit. */
+@media (max-width: 520px) {
+  .nav a[href="/"] {
+    display: none;
+  }
+  .top {
+    gap: 12px;
+  }
+  .logo {
+    font-size: 18px;
+  }
+  .nav a {
+    padding: 8px 6px;
+    font-size: 15px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

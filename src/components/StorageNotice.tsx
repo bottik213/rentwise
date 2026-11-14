@@ -25,17 +25,17 @@ export function StorageNotice() {
   const message = MESSAGES[status.problem];
 
   return (
-    <div role="alert" className="border-b border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-4 text-sm sm:px-6">
-        <p className="font-medium text-bad">{message.title}</p>
-        <p className="mt-1">{message.detail}</p>
+    <div role="alert" className="notice">
+      <div>
+        <p className="t">{message.title}</p>
+        <p>{message.detail}</p>
         {status.hasUnsavedChanges && (
-          <p className="mt-1">Your latest changes are only kept in this tab. Export a copy before closing or reloading.</p>
+          <p>Your latest changes are only kept in this tab. Export a copy before closing or reloading.</p>
         )}
-        <div className="mt-2 flex flex-wrap gap-x-6">
-          <button type="button" onClick={() => retryStorage()} className="min-h-11 font-medium underline underline-offset-4">{message.action}</button>
+        <div className="flex flex-wrap gap-x-4">
+          <button type="button" onClick={() => retryStorage()} className="lnk" style={{ paddingLeft: 0, fontWeight: 600, color: "var(--ink)" }}>{message.action}</button>
           {status.problem !== "read" && (
-            <button type="button" onClick={exportAppData} className="min-h-11 underline underline-offset-4">Export current data (JSON)</button>
+            <button type="button" onClick={exportAppData} className="lnk">Export current data (JSON)</button>
           )}
         </div>
       </div>

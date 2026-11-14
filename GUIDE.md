@@ -126,6 +126,15 @@ cash-flow drivers is still marked "estimate", RentWise tells you to confirm it b
 Reached with **Analysis** in the navigation. Everything recalculates instantly, and changed numbers animate
 briefly (or jump straight to the new value if your device has reduced motion turned on).
 
+From the top, the page shows:
+
+| Section | Meaning |
+|---|---|
+| **The short version** | Two or three plain sentences: monthly and yearly cash flow after reserves, cash invested, cash-on-cash, and how far rent could fall before the property stops covering its costs. Its badge compares cash flow with **your own** minimum target (default $0): **Meets your target**, **Thin margin** (less than $100/mo above the target, or rent within 5% of break-even) or **Misses your target**. It is a comparison with your target, not a judgment of the deal. |
+| **The four numbers to know** | Cash flow after reserves, cash-on-cash, break-even rent and offer ceiling, each with a badge against your targets. Hover, tap or tab to a card to see what it means and how it's worked out. Below them: NOI, monthly P&I and total cash invested. |
+| **Where the rent goes** | Gross rent stepping down through vacancy, running costs, mortgage and CapEx reserve to what's left. |
+| Scenarios, Offer ceiling, What moves cash flow most | Described in 3.3 – 3.5. |
+
 ### 3.1 Header buttons
 
 | Button | What it does |
@@ -248,15 +257,16 @@ Each recorded month has **Edit** (loads it into the form) and **Delete** (asks f
 
 | Section | Meaning |
 |---|---|
-| **Forecast vs. actual** tiles | Rent received, operating costs and cash flow before CapEx over the recorded months. Forecast labels are gold-brown; actuals turn blue when better than plan and red when worse. |
-| **Total variance** | Actual minus forecast cash flow before CapEx, over the same months, using the same definition. |
-| **Why cash flow differs from plan** | A waterfall chart: the forecast bar (gold hatch), then one bar per category that moved (blue = better, red = worse), ending at the actual bar (black). |
+| **Latest month** card | One sentence on how far the latest month's cash flow before CapEx landed from plan and the biggest reason, then **Planned**, **Actual** and **Difference** to the cent. |
+| Side cards | The two months before it, each with its difference and a one-line reason, and **Since you bought**: the total difference over every recorded month. |
+| **Monthly cash flow, plan vs. actual** | A bar per recorded month (up to the last 12) showing actual cash flow before CapEx; the dashed line is the plan's monthly figure. |
+| **What pulled [month] away from plan** | For the latest month: a bar per category that moved (right is better than plan, left is worse), then a table with plan, actual and effect on cash flow. Categories on plan are grouped as **Everything else**. The rows **add up exactly** to the total variance. |
 | Plain-English explanation | A rule-based summary of the biggest drivers and the CapEx comparison. No AI is involved. |
-| **Contributors** table | Forecast, actual and effect on cash flow for every category. The rows **add up exactly** to the total variance. Positive means better than plan. |
-| **CapEx, kept separate** | CapEx spent vs. the reserve you planned to set aside over the same months. |
+| **CapEx, kept separate** | CapEx spent vs. the reserve you planned to set aside over every recorded month. |
 
-**Example:** record one month exactly on plan, then a second month with repairs of **$1,996** instead of the
-forecast $196. Total variance is **−$1,800.00**, and the whole difference is attributed to repairs and maintenance.
+**Example:** on the example property, record a month with repairs of **$1,996** instead of the forecast $196.
+Planned cash flow is **$187.86**, actual **−$1,612.14**, and the difference of **−$1,800.00** is attributed entirely to
+repairs and maintenance.
 
 ---
 

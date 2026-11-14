@@ -1,0 +1,262 @@
+.pg-inputs {
+  .wrap {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+  .ph {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .ph h1 {
+    margin: 0;
+    font-size: 44px;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+  .ph p {
+    margin: 12px 0 0;
+    font-size: 18px;
+    color: var(--ink-2);
+    max-width: 56ch;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 40px;
+    align-items: start;
+  }
+  .formc {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  .nick {
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .nick label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .nick label span {
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .nick input {
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: var(--card);
+    font: 500 17px var(--font-public-sans), sans-serif;
+    color: var(--ink);
+    outline: 0;
+  }
+  .nick input:focus {
+    border-color: var(--spruce);
+    box-shadow: 0 0 0 3px var(--spruce-tint);
+  }
+  .sec {
+    min-width: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px 24px 28px;
+    margin: 0;
+    box-shadow: var(--shadow);
+  }
+  .sec legend {
+    float: left;
+    width: 100%;
+    padding: 0;
+    margin: 0 0 20px;
+    font-size: 22px;
+  }
+  .sec legend small {
+    display: block;
+    font-family: var(--font-public-sans), sans-serif;
+    font-stretch: 100%;
+    font-variation-settings: normal;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: 0;
+    margin-top: 2px;
+  }
+  .fg {
+    clear: both;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 24px;
+  }
+  .fg .chk {
+    grid-column: 1 / -1;
+    font-size: 16px;
+    color: var(--ink);
+  }
+  .inp {
+    height: 48px;
+    padding: 0 14px;
+  }
+  .inp input {
+    font-size: 17px;
+  }
+  .seg {
+    display: inline-flex;
+    margin-left: auto;
+    border: 1px solid var(--line-2);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .seg button {
+    height: 26px;
+    min-width: 32px;
+    border: 0;
+    background: transparent;
+    font: 600 13px var(--font-public-sans), sans-serif;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .sum {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .sumc {
+    background: var(--spruce);
+    color: var(--on-spruce);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .sumc .k {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .sumc dl {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .sumc dt {
+    font-size: 15px;
+    opacity: 0.9;
+  }
+  .sumc dd {
+    margin: 2px 0 0;
+    font-size: 40px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .sumc dd small {
+    font-size: 16px;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+  .sumc .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    padding-top: 12px;
+    font-size: 15px;
+  }
+  .sumc p.say {
+    margin: 0;
+    font-size: 15px;
+    opacity: 0.9;
+  }
+  .sum .tip2 {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0;
+  }
+  .sum .err {
+    margin: 0;
+    font-size: 14px;
+    color: var(--bad);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .pg-inputs .sumc {
+    background: #173b2e;
+    color: #f3f1eb;
+  }
+}
+
+@media (max-width: 899px) {
+  .pg-inputs {
+    .wrap {
+      padding: 32px 16px 200px;
+    }
+    .ph h1 {
+      font-size: 32px;
+    }
+    .grid,
+    .fg {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .sum {
+      position: fixed;
+      top: auto;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      z-index: 40;
+      gap: 8px;
+    }
+    .sumc {
+      padding: 12px 16px;
+      gap: 8px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 12px;
+    }
+    .sumc .k,
+    .sumc .row,
+    .sumc p.say,
+    .sum .tip2 {
+      display: none;
+    }
+    .sumc dl {
+      flex-direction: row;
+      gap: 20px;
+    }
+    .sumc dd {
+      font-size: 20px;
+    }
+    .sumc dt {
+      font-size: 13px;
+    }
+    .sum .btn {
+      height: 44px;
+      font-size: 16px;
+    }
+  }
+}

@@ -37,7 +37,7 @@ The workflow is **Analyze → Stress test → Offer ceiling → Track actuals �
 | Offer ceiling | The highest price that still meets your targets (minimum cash flow, minimum cash-on-cash, maximum upfront cash, optionally "must pass conservative"). Shows the difference from asking, the limiting target, the metrics at that price, and a clear "no price works" state. |
 | Sensitivity | Which assumption moves cash flow most, in real dollars ("Insurance +$100/mo = −$1,200/yr"). High-impact assumptions still marked as estimates are flagged. No probabilities. |
 | Track actuals | "Mark as owned" locks the plan. Monthly entries are prefilled from the forecast, editable, and persist in your browser. |
-| Explain variance | Forecast vs. actual rent, operating costs and cash flow before CapEx, plus a waterfall chart and a contributor table that sums **exactly** to the total variance. Includes a plain-English explanation. CapEx is compared to the reserve separately. |
+| Explain variance | Forecast vs. actual rent, operating costs and cash flow before CapEx, plus a monthly plan-vs-actual chart and a contributor table that sums **exactly** to the total variance. Includes a plain-English explanation. CapEx is compared to the reserve separately. |
 
 Each key assumption can be tagged with where it came from: estimate, listing, bill, quote or document.
 "Export my data" downloads JSON, and "Clear my data" wipes everything.
@@ -52,7 +52,7 @@ Each key assumption can be tagged with where it came from: estimate, listing, bi
 
 **Actuals vs. plan.** A surprise $1,800 repair explains the full −$1,800.00 variance:
 
-![Actuals and variance waterfall](docs/screenshots/actuals.png)
+![Actuals: plan vs. actual](docs/screenshots/actuals.png)
 
 ## Financial assumptions
 
@@ -86,7 +86,7 @@ Default percentages (vacancy 5%, maintenance 8%, management 8%, CapEx 5%) and th
 
 ## Architecture
 
-Next.js App Router · TypeScript · Tailwind CSS v4 · Recharts · Zod · Vitest · Playwright.
+Next.js App Router · TypeScript · Tailwind CSS v4 · Zod · Vitest · Playwright.
 There is no backend, database or account system. The finance engine is pure TypeScript with no React and no network.
 
 ```
@@ -95,7 +95,7 @@ src/
   components/
     forms/             PropertyForm, NumberField, field definitions
     results/           metrics, scenarios, offer ceiling, sensitivity, animated numbers
-    charts/            VarianceWaterfall (Recharts)
+    charts/            PlanVsActual (plain HTML/CSS)
   lib/
     finance/           types, money, mortgage, underwriting, scenarios, offer-ceiling, sensitivity, variance
     validation.ts      Zod schemas (guards everything read from storage)
@@ -104,7 +104,7 @@ src/
     format.ts          currency/percent formatting (true minus signs, tabular numbers)
   data/demo-property.ts  synthetic example (doubles as the reference test fixture)
 tests/
-  finance/             Vitest: engine, edge cases, reconciliation, explanation, storage guard
+  finance/             Vitest: engine, edge cases, reconciliation, explanation, verdict, storage guard
   e2e/                 Playwright: the full journey on 5 browser setups
 ```
 
@@ -130,7 +130,7 @@ None. The app has no API keys, server secrets or external services.
 ## Tests
 
 ```bash
-npm test             # Vitest: finance engine, explanation, storage guard (48 tests)
+npm test             # Vitest: finance engine, explanation, verdict wording, storage guard (54 tests)
 npm run typecheck
 npm run lint
 

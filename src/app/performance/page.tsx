@@ -1,27 +1,56 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { DataControls } from "@/components/DataControls";
-import { VarianceWaterfall } from "@/components/charts/VarianceWaterfall";
+import duplex from "@/assets/photos/duplex-hinesburg.jpg";
+import porch from "@/assets/photos/porch-toronto.jpg";
+import { PageFooter } from "@/components/DataControls";
+import { Contributors, PlanVsActual } from "@/components/charts/PlanVsActual";
 import { NumberField } from "@/components/forms/NumberField";
+import { Arrow, Badge, Logo } from "@/components/Icons";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
+import { TryExampleButton } from "@/components/TryExampleButton";
 import { CATEGORY_LABEL, explainVariance } from "@/lib/explain";
 import { underwrite } from "@/lib/finance/underwriting";
 import { monthlyForecast, variance } from "@/lib/finance/variance";
-import { ACTUAL_CATEGORIES, type ActualMonth, type Cents } from "@/lib/finance/types";
+import { ACTUAL_CATEGORIES, type ActualMonth, type Cents, type Underwriting, type VarianceContributor } from "@/lib/finance/types";
 import { monthLabel, usd } from "@/lib/format";
 import { setAppState, useAppState } from "@/lib/storage";
 import { ActualMonthSchema } from "@/lib/validation";
+import "./performance.css";
 
 const FIELD_KEYS = [...ACTUAL_CATEGORIES, "capex"] as const;
 const HELP: Partial<Record<(typeof FIELD_KEYS)[number], string>> = {
   rentReceived: "Rent actually collected. Security deposits are not income; leave them out.",
   capex: "Big replacements (roof, HVAC). Tracked against your reserve, not cash flow.",
 };
+const INCOME = new Set(["rentReceived", "otherIncome"]);
 const nextMonth = (m: string) => {
   const [y, mo] = m.split("-").map(Number);
   return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
 };
+const longMonth = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+const lc = (s: string) => (/^[A-Z]{2}/.test(s) ? s : s[0].toLowerCase() + s.slice(1));
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+const movers = (cs: VarianceContributor[]) => cs.filter((c) => c.impact !== 0).sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+
+/** "maintenance cost $120.00 more than planned" / "rent received was $32.61 lower than planned". */
+function phrase(c: VarianceContributor) {
+  const amt = usd(Math.abs(c.impact), { exact: true });
+  const label = lc(CATEGORY_LABEL[c.category]);
+  if (INCOME.has(c.category)) return `${label} was ${amt} ${c.impact < 0 ? "lower" : "higher"} than planned`;
+  return `${label} cost ${amt} ${c.impact < 0 ? "more" : "less"} than planned`;
+}
+
+function monthSentence(u: Underwriting, m: ActualMonth) {
+  const ms = movers(variance(u, [m]).contributors);
+  if (!ms.length) return "Everything matched the plan.";
+  const rest = ms.length > 1 ? ` ${ms.length - 1} other line${ms.length > 2 ? "s" : ""} moved too.` : "";
+  return `${cap(phrase(ms[0]))}.${rest}`;
+}
+
+const judge = (t: number) => (t < 0 ? { st: "bad" as const, label: "Below plan" } : { st: "good" as const, label: t > 0 ? "Above plan" : "On plan" });
 
 export default function PerformancePage() {
   const s = useAppState();
@@ -31,14 +60,28 @@ export default function PerformancePage() {
 
   if (!s.plan) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-24 text-center sm:px-6">
-        <h1 className="text-3xl font-medium tracking-tight">No owned property yet</h1>
-        <p className="mt-3 text-muted">
-          Analyze a property, then choose “Mark as owned”. That locks the plan your actual months are compared against.
-        </p>
-        <Link href={s.property ? "/results" : "/analyze"} className="press mt-8 inline-flex h-11 items-center rounded-md bg-ink px-5 font-medium text-bg hover:bg-ink/85">
-          {s.property ? "Go to the analysis" : "Analyze a property"}
-        </Link>
+      <div className="pg-actuals">
+        <div className="es">
+          <figure>
+            <Image src={porch} priority alt="A red-brick Victorian house with a white wooden front porch and a bicycle by the steps, on a sunny Toronto street" sizes="(max-width: 899px) 100vw, 540px" />
+            <figcaption>Beverly Street, Toronto. Photo: Bill Badzo, public domain mark.</figcaption>
+          </figure>
+          <div>
+            <h1 className="disp">No owned property yet</h1>
+            <p className="l">Once you buy, this is where you&apos;ll see how the property is really doing. Record what you collect and pay each month, and RentWise compares it with the plan you bought on.</p>
+            <ol className="steps">
+              <li>Analyze a property, then choose &ldquo;Mark as owned&rdquo; to lock the plan you buy on.</li>
+              <li>Each month, enter the rent you collected and the bills you paid.</li>
+              <li>See which costs moved cash flow away from plan, to the cent.</li>
+            </ol>
+            <div className="ctas">
+              <Link href={s.property ? "/results" : "/analyze"} className="btn btn-primary btn-lg">
+                {s.property ? "Go to the analysis" : "Analyze a property"} <Arrow size={18} />
+              </Link>
+              {!s.property && <TryExampleButton className="btn btn-quiet btn-lg" />}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -48,12 +91,21 @@ export default function PerformancePage() {
   const forecast = monthlyForecast(u);
   const actuals = s.actuals;
   const blank = (month: string): ActualMonth => ({ month, ...forecast, capex: 0 });
-  const form = draft ?? blank(actuals.length ? nextMonth(actuals[actuals.length - 1].month) : plan.lockedAt.slice(0, 7));
+  const upcoming = actuals.length ? nextMonth(actuals[actuals.length - 1].month) : plan.lockedAt.slice(0, 7);
+  const form = draft ?? blank(upcoming);
   const replacing = actuals.some((a) => a.month === form.month);
   const valid = ActualMonthSchema.safeParse(form).success;
   const monthOk = /^\d{4}-(0[1-9]|1[0-2])$/.test(form.month);
-  const r = variance(u, actuals);
-  const contributorSum = r.contributors.reduce((t, c) => t + c.impact, 0);
+  const all = variance(u, actuals);
+
+  const latest = actuals[actuals.length - 1];
+  const rl = latest ? variance(u, [latest]) : null;
+  const latestMovers = rl ? movers(rl.contributors) : [];
+  const quiet = rl ? rl.contributors.filter((c) => c.impact === 0) : [];
+  const previous = actuals.slice(-3, -1).reverse();
+  const planCf = u.cashFlowBeforeCapex;
+  const points = actuals.slice(-12).map((a) => ({ month: a.month, actual: variance(u, [a]).actualCashFlowBeforeCapex }));
+  const name = (s.isExample ? plan.inputs.nickname?.replace(/\s*\(synthetic\)$/i, "") : plan.inputs.nickname) || "Your property";
 
   const save = () => {
     if (!valid) return;
@@ -67,174 +119,289 @@ export default function PerformancePage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <header>
-        <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{plan.inputs.nickname || "Your property"}: actuals vs. plan</h1>
-        <p className="mt-2 text-muted">{s.isExample && <span className="mr-2 rounded-sm border border-line px-1.5 py-0.5 text-xs text-ink">Synthetic example</span>}
-          Plan locked {new Date(plan.lockedAt).toLocaleDateString("en-US", { dateStyle: "medium" })}. Later edits to the analysis
-          don&apos;t change it. <Link href="/results" className="underline underline-offset-4 hover:text-ink">Back to analysis</Link>
-        </p>
-      </header>
-
-      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <section aria-labelledby="record" className="lg:order-2">
-          {r.months === 0 ? (
-            <div className="rounded-md border border-dashed border-line p-8 text-center">
-              <h2 className="text-xl font-medium tracking-tight">Record your first month</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-                The form starts at your plan&apos;s forecast. Change only what really happened, like a repair bill, and the
-                variance explains itself.
-              </p>
-            </div>
+    <div className="pg-actuals">
+      <div className="wrap">
+        <header className="ph">
+          {s.isExample ? (
+            <Image className="thumb" src={duplex} alt="Two-story side-by-side duplex with a shared front porch" width={64} height={64} />
           ) : (
-            <div className="flex flex-col gap-12">
-              <div className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2">
-                <Compare label="Rent received" f={r.forecastRent} a={r.actualRent} income />
-                <Compare label="Operating costs" f={r.forecastOperatingCosts} a={r.actualOperatingCosts} />
-                <Compare label="Cash flow before CapEx" f={r.forecastCashFlowBeforeCapex} a={r.actualCashFlowBeforeCapex} income />
-                <div className="bg-bg p-5">
-                  <p className="text-sm text-muted">Total variance · {r.months} month{r.months === 1 ? "" : "s"}</p>
-                  <p className={`num mt-2 text-3xl font-medium tracking-tight ${r.totalVariance < 0 ? "text-bad" : r.totalVariance > 0 ? "text-good" : ""}`}>
-                    {usd(r.totalVariance, { exact: true, signed: true })}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">Actual minus forecast, same months, same definition</p>
-                </div>
-              </div>
+            <span className="thumb" aria-hidden>
+              <Logo />
+            </span>
+          )}
+          <div className="txt">
+            <h1 className="disp">{name}, plan vs. actual</h1>
+            <p className="num">
+              Plan locked {new Date(plan.lockedAt).toLocaleDateString("en-US", { dateStyle: "medium" })} · {actuals.length} month{actuals.length === 1 ? "" : "s"} recorded
+              {s.isExample && <> · <span className="tag">Synthetic example</span></>} · Later edits to the analysis don&apos;t change the plan.{" "}
+              <Link href="/results">Back to analysis</Link>
+            </p>
+          </div>
+          <a href="#record" className="btn btn-primary">
+            Record {longMonth(upcoming).split(" ")[0]} <Arrow />
+          </a>
+        </header>
 
-              <div>
-                <h2 className="text-xl font-medium tracking-tight">Why cash flow differs from plan</h2>
-                <div className="mt-5"><VarianceWaterfall r={r} /></div>
-                <div className="mt-6 rounded-md bg-surface p-5">
-                  <ul className="flex flex-col gap-2 text-sm leading-relaxed">
-                    {explainVariance(r).map((line) => <li key={line}>{line}</li>)}
-                  </ul>
-                  <p className="mt-3 text-xs text-muted">Rule-based explanation computed from your numbers. No AI involved.</p>
+        {rl && latest ? (
+          <>
+            <div className="lead">
+              <section className="hl" aria-labelledby="hl-h">
+                <div className="k">
+                  <span id="hl-h">{longMonth(latest.month)}</span>
+                  <Badge {...judge(rl.totalVariance)} />
                 </div>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-medium tracking-tight">Contributors</h2>
-                <p className="mt-1 text-sm text-muted">Positive = better than plan. The rows add up exactly to the total.</p>
-                <div className="-mx-4 mt-4 overflow-x-auto px-4">
-                  <table className="w-full min-w-[480px] text-sm">
-                    <thead>
-                      <tr className="border-b border-line text-left text-muted">
-                        <th scope="col" className="py-2 font-normal">Category</th>
-                        <th scope="col" className="py-2 text-right font-normal">Forecast</th>
-                        <th scope="col" className="py-2 text-right font-normal">Actual</th>
-                        <th scope="col" className="py-2 text-right font-normal">Effect on cash flow</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {r.contributors.map((c) => (
-                        <tr key={c.category} className="border-b border-line/60">
-                          <th scope="row" className="py-2 text-left font-normal">{CATEGORY_LABEL[c.category]}</th>
-                          <td className="num py-2 text-right text-muted">{usd(c.forecast, { exact: true })}</td>
-                          <td className="num py-2 text-right">{usd(c.actual, { exact: true })}</td>
-                          <td className={`num py-2 text-right ${c.impact < 0 ? "text-bad" : c.impact > 0 ? "text-good" : "text-muted"}`}>
-                            {usd(c.impact, { exact: true, signed: true })}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="border-t border-ink font-medium">
-                        <th scope="row" className="py-2 text-left">Total variance</th>
-                        <td /><td />
-                        <td className="num py-2 text-right">{usd(contributorSum, { exact: true, signed: true })}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-medium tracking-tight">CapEx, kept separate</h2>
-                <p className="num mt-2 text-sm">
-                  Spent <strong className="font-medium">{usd(r.actualCapex, { exact: true })}</strong> against{" "}
-                  <strong className="font-medium">{usd(r.plannedCapexReserve, { exact: true })}</strong> set aside in reserve over the same{" "}
-                  {r.months} month{r.months === 1 ? "" : "s"}. The reserve is savings, not an expense.
+                <p className="big">
+                  {rl.totalVariance === 0 ? (
+                    "Cash flow matched the plan this month."
+                  ) : (
+                    <>
+                      Cash flow was <b className="num">{usd(Math.abs(rl.totalVariance))}</b> {rl.totalVariance < 0 ? "below" : "above"} plan this month
+                      {latestMovers.length ? <>, mostly because {phrase(latestMovers[0])}.</> : "."}
+                    </>
+                  )}
                 </p>
+                <dl className="num">
+                  <div>
+                    <dt>Planned</dt>
+                    <dd>{usd(rl.forecastCashFlowBeforeCapex, { exact: true })}</dd>
+                  </div>
+                  <div>
+                    <dt>Actual</dt>
+                    <dd>{usd(rl.actualCashFlowBeforeCapex, { exact: true })}</dd>
+                  </div>
+                  <div>
+                    <dt>Difference</dt>
+                    <dd className={rl.totalVariance < 0 ? "neg" : rl.totalVariance > 0 ? "pos" : ""}>{usd(rl.totalVariance, { exact: true, signed: true })}</dd>
+                  </div>
+                </dl>
+                <p className="note" style={{ margin: 0 }}>
+                  Cash flow before CapEx. Big replacements are tracked against your reserve, not here. Rule-based explanation computed from your numbers. No AI involved.
+                </p>
+              </section>
+              <div className="side">
+                {previous.map((m) => {
+                  const t = variance(u, [m]).totalVariance;
+                  return (
+                    <div key={m.month} className="vc">
+                      <div className="m">
+                        <span>{longMonth(m.month)}</span>
+                        <span className={`num ${t < 0 ? "neg" : t > 0 ? "pos" : ""}`}>{usd(t, { exact: true, signed: true })}</span>
+                      </div>
+                      <p>{monthSentence(u, m)}</p>
+                    </div>
+                  );
+                })}
+                {actuals.length > 1 && (
+                  <div className="vc">
+                    <div className="m">
+                      <span>Since you bought</span>
+                      <span className={`num ${all.totalVariance < 0 ? "neg" : all.totalVariance > 0 ? "pos" : ""}`}>{usd(all.totalVariance, { exact: true, signed: true })}</span>
+                    </div>
+                    <p className="num">
+                      {all.months} months, {usd(all.actualCashFlowBeforeCapex, { exact: true })} actual against {usd(all.forecastCashFlowBeforeCapex, { exact: true })} planned.
+                    </p>
+                  </div>
+                )}
+                {actuals.length === 1 && (
+                  <div className="vc">
+                    <div className="m">
+                      <span>Your first month</span>
+                    </div>
+                    <p>Each month you add shows up in the chart below, so you can see a trend form.</p>
+                  </div>
+                )}
               </div>
+            </div>
 
-              <div>
-                <h2 className="text-xl font-medium tracking-tight">Recorded months</h2>
-                <ul className="mt-4 divide-y divide-line border-y border-line text-sm">
-                  {actuals.map((a) => (
-                    <li key={a.month} className="flex items-center justify-between gap-4">
-                      <span>{monthLabel(a.month)}</span>
-                      <span className="flex">
-                        <button type="button" onClick={() => setDraft(a)} className="inline-flex h-11 items-center px-3 underline-offset-4 hover:underline">Edit</button>
-                        <button type="button" onClick={() => remove(a.month)} className="-mr-3 inline-flex h-11 items-center px-3 text-bad underline-offset-4 hover:underline">Delete</button>
-                      </span>
-                    </li>
+            <section aria-labelledby="ch-h">
+              <div className="shead">
+                <h2 className="disp" id="ch-h">
+                  Monthly cash flow, plan vs. actual
+                </h2>
+                <p>Bars are what really happened. The dashed line is the plan you bought on.</p>
+              </div>
+              <PlanVsActual points={points} plan={planCf} />
+            </section>
+
+            <div className="two">
+              <section className="card" aria-labelledby="why-h">
+                <h2 className="disp" id="why-h">
+                  What pulled {longMonth(latest.month).split(" ")[0]} away from plan
+                </h2>
+                <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 15 }}>Each line&apos;s effect on cash flow. Right is better than plan, left is worse.</p>
+                <Contributors movers={latestMovers} total={rl.totalVariance} month={latest.month} />
+                <table className="ct num">
+                  <caption className="sr-only">Plan and actual by category for {longMonth(latest.month)}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Category</th>
+                      <th scope="col">Plan</th>
+                      <th scope="col">Actual</th>
+                      <th scope="col">Effect on cash flow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {latestMovers.map((c) => (
+                      <tr key={c.category}>
+                        <th scope="row">{CATEGORY_LABEL[c.category]}</th>
+                        <td className="mut">{usd(c.forecast, { exact: true })}</td>
+                        <td>{usd(c.actual, { exact: true })}</td>
+                        <td className={c.impact < 0 ? "neg" : "pos"}>{usd(c.impact, { exact: true, signed: true })}</td>
+                      </tr>
+                    ))}
+                    {quiet.length > 0 && (
+                      <tr>
+                        <th scope="row">Everything else ({quiet.length} lines, on plan)</th>
+                        <td className="mut">{usd(quiet.reduce((t, c) => t + c.forecast, 0), { exact: true })}</td>
+                        <td>{usd(quiet.reduce((t, c) => t + c.actual, 0), { exact: true })}</td>
+                        <td className="mut">{usd(0, { exact: true })}</td>
+                      </tr>
+                    )}
+                    <tr className="s">
+                      <th scope="row">Total variance</th>
+                      <td />
+                      <td />
+                      <td className={rl.totalVariance < 0 ? "neg" : rl.totalVariance > 0 ? "pos" : ""}>{usd(rl.totalVariance, { exact: true, signed: true })}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="note">Positive means better than plan. The rows add up exactly to the total.</p>
+                <ul className="why">
+                  {explainVariance(rl).map((line) => (
+                    <li key={line}>{line}</li>
                   ))}
                 </ul>
+              </section>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <section className="card cx" aria-labelledby="cx-h">
+                  <h2 className="disp" id="cx-h">
+                    CapEx, kept separate
+                  </h2>
+                  <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 15 }}>
+                    Your reserve for a roof, HVAC or water heater. Saving into it isn&apos;t a loss, and spending from it doesn&apos;t count against monthly cash flow.
+                  </p>
+                  <div className="meter" aria-hidden>
+                    <i style={{ width: `${all.plannedCapexReserve ? Math.min(100, 100 - (all.actualCapex / all.plannedCapexReserve) * 100) : 0}%` }} />
+                  </div>
+                  <dl className="num">
+                    <div>
+                      <dt>Set aside so far</dt>
+                      <dd>{usd(all.plannedCapexReserve, { exact: true })}</dd>
+                    </div>
+                    <div>
+                      <dt>Spent from it</dt>
+                      <dd>{usd(all.actualCapex, { exact: true })}</dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <section className="card" aria-labelledby="rm-h">
+                  <h2 className="disp" id="rm-h">
+                    Recorded months
+                  </h2>
+                  <div className="rmh" aria-hidden>
+                    <span>Month</span>
+                    <span>Cash flow</span>
+                    <span />
+                  </div>
+                  <ul className="rm num">
+                    {actuals.map((a) => {
+                      const v = variance(u, [a]).actualCashFlowBeforeCapex;
+                      return (
+                        <li key={a.month} className="rmr">
+                          <span>{monthLabel(a.month)}</span>
+                          <span className={v < 0 ? "neg" : ""}>{usd(v, { exact: true })}</span>
+                          <span>
+                            <button type="button" className="lnk" onClick={() => setDraft(a)}>
+                              Edit
+                            </button>
+                            <button type="button" className="lnk danger" onClick={() => remove(a.month)}>
+                              Delete
+                            </button>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
               </div>
             </div>
-          )}
+          </>
+        ) : (
+          <section className="hl" aria-labelledby="first-h">
+            <h2 className="disp" id="first-h" style={{ margin: 0, fontSize: 28 }}>
+              Record your first month
+            </h2>
+            <p style={{ margin: 0, color: "var(--ink-2)", maxWidth: "60ch" }}>
+              The form below starts at your plan&apos;s forecast. Change only what really happened, like a repair bill, and RentWise explains the difference.
+            </p>
+          </section>
+        )}
+
+        <section id="record" className="card" aria-labelledby="record-h" style={{ maxWidth: 760, scrollMarginTop: 24 }}>
+          <h2 className="disp" id="record-h" style={{ margin: 0, fontSize: 22 }}>
+            {replacing ? `Edit ${monthLabel(form.month)}` : "Record a month"}
+          </h2>
+          <p style={{ margin: "4px 0 0", color: "var(--ink-2)", fontSize: 15 }}>Prefilled with the plan&apos;s monthly forecast. Overwrite with what was actually received and paid.</p>
+          <form
+            key={formRevision}
+            className="rf num"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            <label className="mo full">
+              Month
+              {/* Safari and Firefox desktop render type="month" as plain text, so the format is spelled out. */}
+              <input
+                type="month"
+                required
+                placeholder="YYYY-MM"
+                pattern="\d{4}-(0[1-9]|1[0-2])"
+                aria-invalid={!monthOk}
+                aria-describedby="month-help"
+                value={form.month}
+                onChange={(e) => setDraft({ ...form, month: e.target.value.trim() })}
+              />
+              <span id="month-help" className={monthOk ? "sr-only" : "ferr"} style={{ fontWeight: 400 }}>
+                Use year and month, like 2026-11.
+              </span>
+            </label>
+            {FIELD_KEYS.map((k) => (
+              <NumberField
+                key={`${form.month}-${k}`}
+                className={k === "capex" ? "full" : undefined}
+                def={{ label: k === "capex" ? "CapEx spent" : CATEGORY_LABEL[k], kind: "money", help: HELP[k] ?? "", min: 0, max: 1_000_000 }}
+                value={form[k]}
+                onCommit={(v: Cents) => setDraft({ ...form, [k]: v })}
+              />
+            ))}
+            <p className="note full" style={{ margin: 0 }}>
+              Security deposits are not income; leave them out. CapEx is tracked against your reserve, not cash flow.
+              {replacing && " Saving replaces the entry already recorded for this month."}
+            </p>
+            <div className="full" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button type="submit" disabled={!valid} className="btn btn-primary">
+                {replacing ? "Save changes" : "Add month"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(null);
+                  setFormRevision((n) => n + 1);
+                }}
+                className="btn btn-quiet"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
         </section>
 
-        <form
-          key={formRevision}
-          aria-labelledby="record"
-          className="flex flex-col gap-4 lg:order-1"
-          onSubmit={(e) => { e.preventDefault(); save(); }}
-        >
-          <h2 id="record" className="text-lg font-medium">{replacing ? `Edit ${monthLabel(form.month)}` : "Record a month"}</h2>
-          <p className="-mt-2 text-xs text-muted">Prefilled with the plan&apos;s monthly forecast. Overwrite with what was actually received and paid.</p>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Month
-            {/* Safari and Firefox desktop render type="month" as plain text, so the format is spelled out. */}
-            <input
-              type="month"
-              required
-              placeholder="YYYY-MM"
-              pattern="\d{4}-(0[1-9]|1[0-2])"
-              aria-invalid={!monthOk}
-              aria-describedby="month-help"
-              value={form.month}
-              onChange={(e) => setDraft({ ...form, month: e.target.value.trim() })}
-              className={`num h-11 rounded-md border bg-bg px-3 font-normal outline-none hover:border-muted focus:border-ink focus:ring-1 focus:ring-ink ${monthOk ? "border-line" : "border-bad"}`}
-            />
-            <span id="month-help" className={`text-xs font-normal ${monthOk ? "sr-only" : "text-bad"}`}>
-              Use year and month, like 2026-11.
-            </span>
-          </label>
-          {FIELD_KEYS.map((k) => (
-            <NumberField
-              key={`${form.month}-${k}`}
-              def={{ label: k === "capex" ? "CapEx spent" : CATEGORY_LABEL[k], kind: "money", help: HELP[k] ?? "", min: 0, max: 1_000_000 }}
-              value={form[k]}
-              compact={!HELP[k]}
-              onCommit={(v: Cents) => setDraft({ ...form, [k]: v })}
-            />
-          ))}
-          {replacing && <p className="text-xs text-muted">Saving replaces the entry already recorded for this month.</p>}
-          <div className="flex gap-3">
-            <button type="submit" disabled={!valid} className="h-11 flex-1 rounded-md bg-ink px-5 text-sm font-medium text-bg press hover:bg-ink/85 disabled:opacity-50">
-              {replacing ? "Save changes" : "Add month"}
-            </button>
-            <button type="button" onClick={() => { setDraft(null); setFormRevision((n) => n + 1); }} className="press h-11 rounded-md border border-line px-4 text-sm hover:border-ink">Reset</button>
-          </div>
-        </form>
+        <PageFooter>RentWise is a modeling tool, not financial or tax advice. Keep your own receipts and statements; this page only compares the numbers you enter.</PageFooter>
       </div>
-
-      <div className="mt-16"><DataControls /></div>
-    </div>
-  );
-}
-
-function Compare({ label, f, a, income }: { label: string; f: Cents; a: Cents; income?: boolean }) {
-  const better = income ? a > f : a < f;
-  return (
-    <div className="bg-bg p-5">
-      <p className="text-sm text-muted">{label}</p>
-      <dl className="mt-2 grid grid-cols-2 gap-2">
-        <div><dt className="text-xs text-gold-ink">Forecast</dt><dd className="num text-lg">{usd(f, { exact: true })}</dd></div>
-        <div>
-          <dt className="text-xs">Actual</dt>
-          <dd className={`num text-lg font-medium ${a === f ? "" : better ? "text-good" : "text-bad"}`}>{usd(a, { exact: true })}</dd>
-        </div>
-      </dl>
     </div>
   );
 }

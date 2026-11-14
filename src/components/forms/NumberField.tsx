@@ -1,10 +1,19 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
+import { InfoIcon } from "@/components/Icons";
+import { useTapTip } from "@/components/useTapTip";
 import type { AssumptionSource } from "@/lib/finance/types";
 import { parseNumber } from "@/lib/validation";
 import { type FieldDef, toDisplay, toEngine } from "./fields";
 
 const SOURCES: AssumptionSource[] = ["estimate", "listing", "bill", "quote", "document"];
+const SOURCE_LABEL: Record<AssumptionSource, string> = {
+  estimate: "Estimate",
+  listing: "From listing",
+  bill: "From a bill",
+  quote: "From a quote",
+  document: "From a document",
+};
 
 function validate(def: Pick<FieldDef, "kind" | "min" | "max">, raw: string): { value: number } | { error: string } {
   const n = parseNumber(raw);
@@ -14,6 +23,12 @@ function validate(def: Pick<FieldDef, "kind" | "min" | "max">, raw: string): { v
   return { value: toEngine(def.kind, n) };
 }
 
+/** Money shows thousands separators once you leave the field; while typing, your own text stays. */
+const pretty = (kind: FieldDef["kind"], v: number) => {
+  const s = toDisplay(kind, v);
+  return kind === "money" ? Number(s).toLocaleString("en-US", { maximumFractionDigits: 2 }) : s;
+};
+
 interface Props {
   def: Pick<FieldDef, "label" | "kind" | "suffix" | "help" | "min" | "max">;
   value: number | undefined;
@@ -21,15 +36,18 @@ interface Props {
   disabled?: boolean;
   source?: AssumptionSource;
   onSource?: (s: AssumptionSource) => void;
-  compact?: boolean;
+  /** Rendered between the label and the help icon, e.g. the closing-cost % / $ switch. */
+  extra?: React.ReactNode;
+  className?: string;
 }
 
 /** Text input that commits only valid values; the draft (and its error) stays visible while invalid. */
-export function NumberField({ def, value, onCommit, disabled, source, onSource, compact }: Props) {
+export function NumberField({ def, value, onCommit, disabled, source, onSource, extra, className }: Props) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const tip = useTapTip<HTMLDivElement>();
   const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? (value === undefined ? "" : toDisplay(def.kind, value));
+  const shown = draft ?? (value === undefined ? "" : pretty(def.kind, value));
   const result = draft === null ? null : validate(def, draft);
   const error = result && "error" in result ? result.error : value === undefined && draft !== null ? "Required" : null;
 
@@ -39,26 +57,32 @@ export function NumberField({ def, value, onCommit, disabled, source, onSource, 
   }, [error]);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="text-sm font-medium">{def.label}</label>
+    <div ref={tip.ref} className={`tw fld ${tip.open ? "open" : ""} ${className ?? ""}`}>
+      <div className="flabel">
+        <label htmlFor={id}>{def.label}</label>
+        {def.help && (
+          <button type="button" className="ib" aria-label={`About ${def.label}`} aria-expanded={tip.open} onClick={tip.toggle}>
+            <InfoIcon />
+          </button>
+        )}
+        {extra}
         {onSource && (
           <select
             aria-label={`${def.label} source`}
             value={source ?? "estimate"}
             onChange={(e) => onSource(e.target.value as AssumptionSource)}
-            className="rounded-sm bg-transparent text-xs text-muted hover:text-ink"
+            className={`src ${source && source !== "estimate" ? "ok" : ""}`}
           >
-            {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {SOURCE_LABEL[s]}
+              </option>
+            ))}
           </select>
         )}
       </div>
-      <div
-        className={`flex h-11 items-center rounded-md border bg-bg px-3 transition-colors focus-within:border-ink focus-within:ring-1 focus-within:ring-ink ${
-          error ? "border-bad" : "border-line hover:border-muted"
-        } ${disabled ? "opacity-50" : ""}`}
-      >
-        {def.kind === "money" && <span className="mr-1 text-muted" aria-hidden>$</span>}
+      <div className={`inp ${error ? "err" : ""} ${disabled ? "off" : ""}`}>
+        {def.kind === "money" && <span className="pre" aria-hidden>$</span>}
         <input
           ref={inputRef}
           id={id}
@@ -68,21 +92,27 @@ export function NumberField({ def, value, onCommit, disabled, source, onSource, 
           disabled={disabled}
           value={shown}
           aria-invalid={!!error}
-          aria-describedby={`${id}-help`}
+          aria-describedby={`${id}-help ${id}-err`}
           onFocus={() => setDraft(shown)}
           onChange={(e) => {
             setDraft(e.target.value);
             const r = validate(def, e.target.value);
             if ("value" in r) onCommit(r.value);
           }}
-          onBlur={() => { if (result && "value" in result) setDraft(null); }}
-          className="num w-full min-w-0 bg-transparent outline-none"
+          onBlur={() => {
+            if (result && "value" in result) setDraft(null);
+          }}
         />
-        {def.suffix && <span className="ml-2 shrink-0 text-sm text-muted">{def.suffix}</span>}
+        {def.suffix && <span className="unit">{def.suffix}</span>}
       </div>
-      <p id={`${id}-help`} className={`text-xs ${error ? "text-bad" : "text-muted"}`}>
-        {error ?? (compact ? null : def.help)}
+      <p id={`${id}-err`} className="ferr" hidden={!error}>
+        {error}
       </p>
+      {def.help && (
+        <div className="pop up" role="tooltip" id={`${id}-help`}>
+          <p>{def.help}</p>
+        </div>
+      )}
     </div>
   );
 }

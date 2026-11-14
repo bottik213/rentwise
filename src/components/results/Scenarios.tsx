@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Chevron } from "@/components/Icons";
 import type { ScenarioAdjustments, ScenarioName, Underwriting } from "@/lib/finance/types";
 import { pct, usd } from "@/lib/format";
 import { setAppState } from "@/lib/storage";
@@ -10,56 +11,128 @@ const ADJ: [key: keyof ScenarioAdjustments, label: string, unit: string, min: nu
   ["vacancyPts", "Vacancy", "pts", -100, 100],
   ["maintenancePts", "Maintenance", "pts", -100, 100],
   ["capexPts", "CapEx reserve", "pts", -100, 100],
-  ["fixedCostChangePct", "Fixed costs (tax, insurance, HOA, utilities, other)", "%", -100, 500],
+  ["fixedCostChangePct", "Fixed costs: tax, insurance, HOA, utilities", "%", -100, 500],
 ];
-const COLS: [ScenarioName, string][] = [["conservative", "Conservative"], ["base", "Base"], ["optimistic", "Optimistic"]];
+const COLS: [ScenarioName, string][] = [
+  ["conservative", "Conservative"],
+  ["base", "Base"],
+  ["optimistic", "Optimistic"],
+];
 
 export function Scenarios({ scenarios, results }: { scenarios: Record<ScenarioName, ScenarioAdjustments>; results: Record<ScenarioName, Underwriting> }) {
   const set = (name: ScenarioName, key: keyof ScenarioAdjustments, v: number) =>
     setAppState((x) => ({ ...x, scenarios: { ...x.scenarios, [name]: { ...x.scenarios[name], [key]: v } } }));
 
-  return (
-    <div className="-mx-4 overflow-x-auto px-4">
-      <table className="w-full min-w-[520px] text-sm">
-        <caption className="sr-only">Scenario adjustments and results</caption>
-        <thead>
-          <tr className="border-b border-line text-left text-muted">
-            <th scope="col" className="py-2 font-normal">Adjustment vs. your inputs</th>
-            {COLS.map(([k, label]) => <th key={k} scope="col" className="w-32 py-2 text-right font-normal">{label}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {ADJ.map(([key, label, unit, min, max]) => (
-            <tr key={key} className="border-b border-line/60">
-              <th scope="row" className="py-1.5 text-left font-normal text-muted">{label} <span className="text-xs">({unit})</span></th>
-              {COLS.map(([name, col]) => (
-                <td key={name} className="py-1.5 text-right">
-                  {name === "base" ? (
-                    <span className="num text-muted">0</span>
-                  ) : (
-                    <PctInput label={`${col} ${label} ${unit}`} value={scenarios[name][key]} min={min} max={max} onCommit={(v) => set(name, key, v)} />
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-          <ResultRow label="Cash flow after reserves /mo" results={results} pick={(u) => usd(u.reserveAdjustedCashFlow, { exact: true })} strong />
-          <ResultRow label="Cash-on-cash" results={results} pick={(u) => pct(u.cashOnCash)} />
-          <ResultRow label="NOI /mo" results={results} pick={(u) => usd(u.noi)} />
-        </tbody>
-      </table>
-    </div>
-  );
-}
+  const cf = COLS.map(([n]) => results[n].reserveAdjustedCashFlow);
+  let lo = Math.min(0, ...cf);
+  let hi = Math.max(0, ...cf);
+  const pad = (hi - lo) * 0.12 || 5_000;
+  lo -= pad;
+  hi += pad;
+  const X = (v: number) => ((v - lo) / (hi - lo)) * 100;
+  const [cons, , opt] = cf;
+  const bandL = X(Math.min(cons, opt));
+  const bandW = X(Math.max(cons, opt)) - bandL;
+  const caption =
+    cons < 0
+      ? `In the conservative case, this property would cost you about ${usd(-cons)} a month out of pocket.`
+      : `Even in the conservative case, it still brings in about ${usd(cons)} a month.`;
 
-function ResultRow({ label, results, pick, strong }: { label: string; results: Record<ScenarioName, Underwriting>; pick: (u: Underwriting) => string; strong?: boolean }) {
   return (
-    <tr className={strong ? "border-t border-ink font-medium" : ""}>
-      <th scope="row" className="py-2 text-left font-normal">{label}</th>
-      {COLS.map(([name]) => (
-        <td key={name} className={`num py-2 text-right ${strong && results[name].reserveAdjustedCashFlow < 0 ? "text-bad" : ""}`}>{pick(results[name])}</td>
-      ))}
-    </tr>
+    <>
+      <div className="scn">
+        {COLS.map(([name, label]) => {
+          const u = results[name];
+          const neg = u.reserveAdjustedCashFlow < 0;
+          return (
+            <div key={name} className={`sc ${name === "base" ? "base" : ""}`}>
+              <div className="n">
+                <span>{label}</span>
+                {name === "base" && <span className="tag">Your inputs</span>}
+              </div>
+              <div className={`cf num ${neg ? "neg" : ""}`}>
+                {usd(u.reserveAdjustedCashFlow, { exact: true })}
+                <small>/mo</small>
+              </div>
+              <dl className="num">
+                <dt>Cash-on-cash</dt>
+                <dd className={u.cashOnCash !== null && u.cashOnCash < 0 ? "neg" : ""}>{pct(u.cashOnCash)}</dd>
+                <dt>NOI</dt>
+                <dd>{usd(u.noi)}/mo</dd>
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <p style={{ margin: 0, fontWeight: 600 }}>Monthly cash flow range</p>
+        <div
+          className="rng num"
+          role="img"
+          aria-label={`Cash flow range from ${usd(cons)} conservative to ${usd(opt)} optimistic, base ${usd(cf[1])}.`}
+        >
+          <span className="ln" />
+          <span className="band" style={{ left: `${bandL}%`, width: `${bandW}%` }} />
+          <span className="z" style={{ left: `${X(0)}%` }} />
+          <span className="zt" style={{ left: `${X(0)}%` }}>
+            $0
+          </span>
+          {COLS.map(([name, label], j) => (
+            <span key={name}>
+              <span className={`dot ${name === "base" ? "base" : cf[j] < 0 ? "bad" : "good"}`} style={{ left: `${X(cf[j])}%` }} />
+              <span className="dl2" style={{ left: `${X(cf[j])}%` }}>
+                {label}
+                <br />
+                <b>{usd(cf[j])}</b>
+              </span>
+            </span>
+          ))}
+        </div>
+        <p className="cap" style={{ marginTop: 8 }}>
+          {caption}
+        </p>
+        <details className="x">
+          <summary>
+            <Chevron />
+            Edit scenario assumptions
+          </summary>
+          <div className="xb">
+            <table className="adj num">
+              <caption className="sr-only">Scenario adjustments</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Change from your inputs</th>
+                  {COLS.map(([k, label]) => (
+                    <th key={k} scope="col">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ADJ.map(([key, label, unit, min, max]) => (
+                  <tr key={key}>
+                    <th scope="row">
+                      {label} ({unit})
+                    </th>
+                    {COLS.map(([name, col]) => (
+                      <td key={name}>
+                        {name === "base" ? (
+                          <span style={{ color: "var(--muted)" }}>0</span>
+                        ) : (
+                          <PctInput label={`${col} ${label} ${unit}`} value={scenarios[name][key]} min={min} max={max} onCommit={(v) => set(name, key, v)} />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="note">Illustrative adjustments, not forecasts. Financing and purchase costs stay the same in every case.</p>
+          </div>
+        </details>
+      </div>
+    </>
   );
 }
 
@@ -82,8 +155,9 @@ function PctInput({ label, value, min, max, onCommit }: { label: string; value: 
         const p = parseNumber(e.target.value);
         if (p !== null && p >= min && p <= max) onCommit(p / 100);
       }}
-      onBlur={() => { if (!invalid) setDraft(null); }}
-      className={`num h-9 w-20 rounded-md border bg-bg px-2 text-right outline-none focus:border-ink focus:ring-1 focus:ring-ink ${invalid ? "border-bad" : "border-line hover:border-muted"}`}
+      onBlur={() => {
+        if (!invalid) setDraft(null);
+      }}
     />
   );
 }
