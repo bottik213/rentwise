@@ -57,14 +57,33 @@ export default function ResultsPage() {
     return (
       <div className="pg-results" style={{ height: "auto" }}>
         <div className="empty">
-          <h1 className="disp">No property to analyze yet</h1>
-          <p>Enter your own numbers, or load the synthetic example to see the full workflow.</p>
-          <div className="ctas">
-            <Link href="/analyze" className="btn btn-primary">
-              Analyze a property <Arrow />
-            </Link>
-            <TryExampleButton className="btn btn-quiet" />
-          </div>
+          {s.deals.length ? (
+            <>
+              <h1 className="disp">No property open</h1>
+              <p>
+                You have {s.deals.length} saved propert{s.deals.length === 1 ? "y" : "ies"}. Open one to see its analysis, or start a new one.
+              </p>
+              <div className="ctas">
+                <Link href="/compare" className="btn btn-primary">
+                  Your properties <Arrow />
+                </Link>
+                <Link href="/analyze" className="btn btn-quiet">
+                  Analyze a new property
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="disp">No property to analyze yet</h1>
+              <p>Enter your own numbers, or load the synthetic example to see the full workflow.</p>
+              <div className="ctas">
+                <Link href="/analyze" className="btn btn-primary">
+                  Analyze a property <Arrow />
+                </Link>
+                <TryExampleButton className="btn btn-quiet" />
+              </div>
+            </>
+          )}
         </div>
       </div>
     );

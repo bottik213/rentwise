@@ -35,6 +35,12 @@
   --dock: #1b211e;
   --dock-ink: #f6f3ec;
   --shadow: 0 1px 2px rgba(27, 33, 30, 0.06), 0 4px 12px rgba(27, 33, 30, 0.05);
+  /* Deal series (compare chart only): data and brick, plus spruce's and a blue-brick hue at chart lightness.
+     Validated with the dataviz checks (lightness, chroma, CVD, contrast) on --card. Always paired with direct labels. */
+  --series-1: var(--data);
+  --series-2: var(--brick);
+  --series-3: #239d75;
+  --series-4: #935799;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -73,6 +79,10 @@
     --dock: #222b26;
     --dock-ink: #f3f1eb;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --series-1: #5296df;
+    --series-2: #d57358;
+    --series-3: #22ab7f;
+    --series-4: #b975bf;
   }
 }
 
@@ -683,6 +693,17 @@ details.x[open] .xb {
     font-size: 15px;
   }
 }
+/* Five tabs and the wordmark don't fit on the narrowest phones: keep the house icon, and the name for screen readers. */
+@media (max-width: 419px) {
+  .logo .wm {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -870,6 +891,61 @@ details.x[open] .xb {
   text-align: right;
   font-weight: 400;
 }
+/* Overlay (compare): one dashed line per deal, named at its end in a right-hand gutter. */
+.chart.ov .ch {
+  grid-template-columns: 64px minmax(0, 1fr) 128px;
+}
+.chart.ov .plot {
+  gap: 0;
+  padding: 0;
+}
+.chart.ov .xa {
+  gap: 0;
+  padding: 8px 0 0;
+  margin-right: 136px;
+}
+.chart .lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+.chart .ends {
+  position: relative;
+  height: 240px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.chart .ends span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transform: translateY(50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.chart .ends i,
+.chart .ovr i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.chart .swl {
+  width: 20px;
+  border-top: 2px dashed;
+}
+.chart .ovr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 /* Forecast style: projected values are outlined with the same dashed ink as the plan line. */
 .chart .cb.fc {
   background: var(--sunk);
@@ -918,6 +994,12 @@ details.x[open] .xb {
     }
     .col .val {
       display: none;
+    }
+    &.ov .ch {
+      grid-template-columns: 44px minmax(0, 1fr) 88px;
+    }
+    &.ov .xa {
+      margin-right: 96px;
     }
   }
   .ct,

@@ -11,7 +11,7 @@ vi.stubGlobal("localStorage", storage);
 
 // Fresh module per test: the store caches state in a module variable.
 const load = () => import("../../src/lib/storage");
-const KEY = "rentwise:v1";
+const KEY = "rentwise:v2";
 
 describe("storage guard", () => {
   beforeEach(() => {
@@ -60,8 +60,8 @@ describe("storage guard", () => {
   });
 
   it("retries a failed load without overwriting the existing saved data", async () => {
-    const { EMPTY_STATE, setAppState, getStorageStatus, retryStorage } = await load();
-    const saved = JSON.stringify({ ...EMPTY_STATE, constraints: { minMonthlyCashFlow: 40_000 } });
+    const { EMPTY_STORED, setAppState, getStorageStatus, retryStorage } = await load();
+    const saved = JSON.stringify({ ...EMPTY_STORED, constraints: { minMonthlyCashFlow: 40_000 } });
     mem.set(KEY, saved);
     const read = vi.spyOn(storage, "getItem").mockImplementation(() => { throw new DOMException("Blocked", "SecurityError"); });
 
@@ -107,8 +107,8 @@ describe("storage guard", () => {
   });
 
   it("blocks edits until unread saved data has been loaded, even after access recovers", async () => {
-    const { EMPTY_STATE, setAppState, getStorageStatus, retryStorage } = await load();
-    const saved = JSON.stringify({ ...EMPTY_STATE, constraints: { minMonthlyCashFlow: 40_000 } });
+    const { EMPTY_STORED, setAppState, getStorageStatus, retryStorage } = await load();
+    const saved = JSON.stringify({ ...EMPTY_STORED, constraints: { minMonthlyCashFlow: 40_000 } });
     mem.set(KEY, saved);
     const read = vi.spyOn(storage, "getItem").mockImplementation(() => { throw new Error("Blocked"); });
     const edit = vi.fn((s) => ({ ...s, constraints: { maxUpfrontCash: 8_500_000 } }));
@@ -126,8 +126,8 @@ describe("storage guard", () => {
   });
 
   it("failed deletion cannot bypass the unread-data guard", async () => {
-    const { EMPTY_STATE, getStorageStatus, setAppState, clearAppData, retryStorage } = await load();
-    const saved = JSON.stringify({ ...EMPTY_STATE, constraints: { minMonthlyCashFlow: 40_000 } });
+    const { EMPTY_STORED, getStorageStatus, setAppState, clearAppData, retryStorage } = await load();
+    const saved = JSON.stringify({ ...EMPTY_STORED, constraints: { minMonthlyCashFlow: 40_000 } });
     mem.set(KEY, saved);
     const read = vi.spyOn(storage, "getItem").mockImplementation(() => { throw new Error("Blocked"); });
     getStorageStatus();

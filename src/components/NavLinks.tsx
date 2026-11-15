@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const LINKS = [["/", "Home"], ["/analyze", "Inputs"], ["/results", "Analysis"], ["/performance", "Actuals"]] as const;
+const LINKS = [["/", "Home"], ["/analyze", "Inputs"], ["/results", "Analysis"], ["/performance", "Actuals"], ["/compare", "Compare"]] as const;
 
 /** Marks the current step so users always know where they are in the workflow. */
 export function NavLinks() {

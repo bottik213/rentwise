@@ -16,7 +16,6 @@ export default function AnalyzePage() {
 
   const editing = s.property && !fresh;
   const startOver = () => {
-    if (s.actuals.length && !confirm("Starting a new property deletes the actuals you recorded. Continue?")) return;
     setFresh(true);
   };
 
@@ -43,9 +42,11 @@ export default function AnalyzePage() {
           onSubmit={(property) => {
             const accepted = setAppState((x) =>
               // Saving the full form makes it your property: it is no longer labeled synthetic or reset without asking.
-              editing ? { ...x, property, isExample: false } : { ...x, property, isExample: false, plan: null, actuals: [] },
+              // A blank form becomes a new property; the one you had open stays in your list.
+              editing ? { ...x, property, isExample: false } : { ...x, activeId: null, property, isExample: false, plan: null, actuals: [] },
             );
             if (accepted) router.push("/results");
+            else if (!editing && s.deals.length >= 50) alert("You have 50 saved properties, the most this browser keeps. Delete one under Compare first.");
           }}
         />
         <PageFooter className="mt-12">

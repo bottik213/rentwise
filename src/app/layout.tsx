@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <header className="top">
           <Link href="/" className="logo disp">
             <Logo />
-            RentWise
+            <span className="wm">RentWise</span>
           </Link>
           <nav className="nav" aria-label="Main">
             <NavLinks />

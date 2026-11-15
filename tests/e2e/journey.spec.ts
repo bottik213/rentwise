@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** The saved state with the open property's fields at the top, as the app sees it (storage v2). */
+const appState = (page: Page) =>
+  page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("rentwise:v2")!);
+    const d = s.deals.find((x: { id: string }) => x.id === s.activeId);
+    return { ...s, property: d?.inputs ?? null, plan: d?.plan ?? null, actuals: d?.actuals ?? [], isExample: d?.isExample ?? false };
+  });
+
 /** Fails the test on any console error or uncaught exception. */
 function watchConsole(page: Page) {
   const errors: string[] = [];
@@ -114,7 +122,7 @@ test("empty states and clearing data", async ({ page }) => {
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Clear my data" }).click();
   await expect(page).toHaveURL(/\/$/);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v1"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:v2"))).toBeNull();
 });
 
 test("all-cash purchase: no P&I, price-independent cash flow, cash-on-cash ceiling", async ({ page }) => {
@@ -158,7 +166,8 @@ test("export downloads the saved data as JSON", async ({ page }) => {
   expect(download.suggestedFilename()).toBe("rentwise-data.json");
   const fs = await import("node:fs/promises");
   const saved = JSON.parse(await fs.readFile((await download.path())!, "utf8"));
-  expect(saved.property.nickname).toBe("Example duplex (synthetic)");
+  expect(saved.v).toBe(2);
+  expect(saved.deals[0].inputs.nickname).toBe("Example duplex (synthetic)");
 });
 
 test("loading the example never silently replaces recorded months", async ({ page }) => {
@@ -173,7 +182,7 @@ test("loading the example never silently replaces recorded months", async ({ pag
   await page.getByRole("button", { name: "Try the example property" }).click();
   expect(asked).toContain("1 recorded month");
   await expect(page).toHaveURL(/\/$/); // cancel stays put
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals.length)).toBe(1);
+  expect((await appState(page)).actuals.length).toBe(1);
 });
 
 test("property form blocks invalid drafts and saves corrected values", async ({ page }) => {
@@ -203,12 +212,12 @@ test("property form blocks invalid drafts and saves corrected values", async ({ 
   await price.press("Enter");
   await expect(page).toHaveURL(/\/analyze$/);
   await expect(price).toHaveAttribute("aria-invalid", "true");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).property.annualInsurance)).toBe(192000);
+  expect((await appState(page)).property.annualInsurance).toBe(192000);
 
   await price.fill("$275,000");
   await save.click();
   await expect(page).toHaveURL(/\/results$/);
-  const property = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).property);
+  const property = (await appState(page)).property;
   expect(property.annualInsurance).toBe(240000);
   expect(property.purchasePrice).toBe(27500000);
   expect(property.closingCostValue).toBe(0.04);
@@ -236,7 +245,7 @@ test("actuals block invalid drafts, reset them, and save corrected amounts", asy
   await page.getByRole("button", { name: "Add month" }).click();
   await expect(insurance).toBeFocused();
   await expect(insurance).toHaveAttribute("aria-invalid", "true");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals)).toEqual([]);
+  expect((await appState(page)).actuals).toEqual([]);
 
   // Reset must also clear an invalid draft that never committed a value to the parent.
   await page.getByRole("button", { name: "Reset" }).click();
@@ -245,7 +254,7 @@ test("actuals block invalid drafts, reset them, and save corrected amounts", asy
   await insurance.fill("260");
   await page.getByRole("button", { name: "Add month" }).click();
   await expect(row(page, /^Total variance/)).toContainText("−$100.00");
-  const actuals = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).actuals);
+  const actuals = (await appState(page)).actuals;
   expect(actuals).toHaveLength(1);
   expect(actuals[0].insurance).toBe(26000);
 });
@@ -264,19 +273,19 @@ test("loading the example protects edited inputs, scenarios and targets", async 
     if (label.startsWith("Conservative")) await page.getByText("Edit scenario assumptions").click();
     await page.getByLabel(label, { exact: true }).fill(value);
     await closeQuick(page);
-    const saved = await page.evaluate(() => localStorage.getItem("rentwise:v1"));
+    const saved = await page.evaluate(() => localStorage.getItem("rentwise:v2"));
     await page.goto("/");
     let asked = "";
     page.once("dialog", (d) => { asked = d.message(); void d.dismiss(); });
     await page.getByRole("button", { name: "Try the example property" }).click();
-    expect(asked).toContain("Loading the example replaces your property");
+    expect(asked).toContain("Loading the example resets");
     await expect(page).toHaveURL(/\/$/);
-    expect(await page.evaluate(() => localStorage.getItem("rentwise:v1"))).toBe(saved);
+    expect(await page.evaluate(() => localStorage.getItem("rentwise:v2"))).toBe(saved);
 
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Try the example property" }).click();
     await expect(page).toHaveURL(/\/results$/);
-    const reset = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!));
+    const reset = (await appState(page));
     expect(reset.property.monthlyRent).toBe(245000);
     expect(reset.scenarios.conservative.rentChangePct).toBe(-0.05);
     expect(reset.constraints.minMonthlyCashFlow).toBe(0);
@@ -302,7 +311,7 @@ test("invalid Quick assumptions block both locking and re-locking a plan", async
   await markOwned("Mark as owned");
   await expect(page).toHaveURL(/\/results$/);
   await expect(insurance).toBeFocused(); // on a phone the sheet reopens so the bad field can take focus
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan)).toBeNull();
+  expect((await appState(page)).plan).toBeNull();
   await insurance.fill("");
   await markOwned("Mark as owned");
   await expect(page).toHaveURL(/\/results$/);
@@ -311,7 +320,7 @@ test("invalid Quick assumptions block both locking and re-locking a plan", async
   await expect(page).toHaveURL(/\/results$/);
   await markOwned("Mark as owned");
   await page.getByRole("button", { name: "Add month" }).click();
-  const plan = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan);
+  const plan = (await appState(page)).plan;
   await page.getByRole("link", { name: "Back to analysis" }).click();
   await openQuick(page);
   await insurance.fill("-1");
@@ -320,13 +329,13 @@ test("invalid Quick assumptions block both locking and re-locking a plan", async
   await markOwned("Re-lock plan and track actuals");
   await expect(page).toHaveURL(/\/results$/);
   expect(confirmations).toBe(0);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!).plan)).toEqual(plan);
+  expect((await appState(page)).plan).toEqual(plan);
 
   await insurance.fill("2600");
   await markOwned("Re-lock plan and track actuals");
   await expect(page).toHaveURL(/\/performance$/);
   expect(confirmations).toBe(1);
-  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v1")!));
+  const state = (await appState(page));
   expect(state.plan.inputs.annualInsurance).toBe(260000);
   expect(state.actuals).toHaveLength(1);
 });

@@ -62,23 +62,48 @@ const scenario = z.object({
   valueGrowthPts: growth.optional(),
 });
 
-export const StoredStateSchema = z.object({
+const plan = z.object({ inputs: PropertyInputsSchema, lockedAt: z.string() });
+const scenarios = z.object({ conservative: scenario, base: scenario, optimistic: scenario });
+const constraints = z.object({
+  minMonthlyCashFlow: z.number().int().optional(),
+  minCashOnCash: z.number().min(-1).max(1).optional(),
+  maxUpfrontCash: cents.optional(),
+  minCapRate: z.number().min(0).max(1).optional(),
+  minDscr: z.number().min(0).max(100).optional(),
+  minIrr: z.number().min(-1).max(5).optional(),
+  mustPassConservative: z.boolean().optional(),
+});
+
+/** Phase 1 storage ("rentwise:v1"): one property. Still read, never written, so it is migrated losslessly. */
+export const StoredStateV1Schema = z.object({
   v: z.literal(1),
   property: PropertyInputsSchema.nullable(),
   isExample: z.boolean(),
   // Snapshot taken at "Mark as owned": the forecast actuals are compared against never changes with later edits.
-  plan: z.object({ inputs: PropertyInputsSchema, lockedAt: z.string() }).nullable(),
-  scenarios: z.object({ conservative: scenario, base: scenario, optimistic: scenario }),
-  constraints: z.object({
-    minMonthlyCashFlow: z.number().int().optional(),
-    minCashOnCash: z.number().min(-1).max(1).optional(),
-    maxUpfrontCash: cents.optional(),
-    minCapRate: z.number().min(0).max(1).optional(),
-    minDscr: z.number().min(0).max(100).optional(),
-    minIrr: z.number().min(-1).max(5).optional(),
-    mustPassConservative: z.boolean().optional(),
-  }),
+  plan: plan.nullable(),
+  scenarios,
+  constraints,
   actuals: z.array(ActualMonthSchema).max(600),
+});
+
+/** One saved property with its own locked plan and actuals. */
+export const DealSchema = z.object({
+  id: z.string().min(1).max(64),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  inputs: PropertyInputsSchema,
+  isExample: z.boolean(),
+  plan: plan.nullable(),
+  actuals: z.array(ActualMonthSchema).max(600),
+});
+
+/** Phase 2 storage ("rentwise:v2"): many properties. Scenarios and targets are yours, so they apply to every deal. */
+export const StoredStateSchema = z.object({
+  v: z.literal(2),
+  deals: z.array(DealSchema).max(50),
+  activeId: z.string().nullable(),
+  scenarios,
+  constraints,
 });
 
 /** Parse a user-typed number: "$250,000" → 250000. Empty or junk → null. */

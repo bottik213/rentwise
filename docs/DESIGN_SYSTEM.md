@@ -17,7 +17,7 @@ No Figma file exists; the code is the source of truth. New screens use only what
 | Positive / negative numbers | `.pos` / `.neg` | Signed money |
 | Infeasible | `.big.neg` "No price works" + one sentence naming the failing target | Offer ceiling |
 | Synthetic | `.tag` "Synthetic example" in the page subtitle | Example data |
-| Deal series (F3) | Pending: 4 tokens derived from the palette, checked with the dataviz validator before use | Compare chart only, always with direct labels |
+| Deal series (F3) | `--series-1..4`: `--data`, `--brick`, then spruce's hue and a blue-brick hue at chart lightness (`#239d75`, `#935799`); dark mode re-stepped (`#5296df`, `#d57358`, `#22ab7f`, `#b975bf`). All dataviz checks pass on `--card` in both modes (dark green↔brick is in the CVD 6–8 band, so lines always carry direct labels) | Compare chart only |
 
 ## Type
 - Display: Archivo, width 112, 700 (`.disp`): h1 36–44px, section h2 28px (`.shead h2`), card h2 22px.

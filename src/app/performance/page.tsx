@@ -75,8 +75,8 @@ export default function PerformancePage() {
               <li>See which costs moved cash flow away from plan, to the cent.</li>
             </ol>
             <div className="ctas">
-              <Link href={s.property ? "/results" : "/analyze"} className="btn btn-primary btn-lg">
-                {s.property ? "Go to the analysis" : "Analyze a property"} <Arrow size={18} />
+              <Link href={s.property ? "/results" : s.deals.length ? "/compare" : "/analyze"} className="btn btn-primary btn-lg">
+                {s.property ? "Go to the analysis" : s.deals.length ? "Your properties" : "Analyze a property"} <Arrow size={18} />
               </Link>
               {!s.property && <TryExampleButton className="btn btn-quiet btn-lg" />}
             </div>

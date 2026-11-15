@@ -14,7 +14,7 @@ export function DataControls() {
         type="button"
         className="lnk danger"
         onClick={() => {
-          if (!confirm("Delete the property, plan and actuals stored in this browser? This can't be undone.")) return;
+          if (!confirm("Delete every property, plan and recorded month stored in this browser? This can't be undone.")) return;
           if (clearAppData()) router.push("/");
         }}
       >

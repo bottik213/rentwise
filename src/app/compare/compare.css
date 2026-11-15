@@ -1,0 +1,180 @@
+/* Compare and the properties list. The page shell (.wrap, .ph, .ctas) comes from the Actuals page. */
+.pg-compare {
+  .ph .acts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ph label.btn {
+    cursor: pointer;
+  }
+  .ph label.btn:focus-within {
+    outline: 2px solid var(--spruce);
+    outline-offset: 2px;
+  }
+
+  /* Properties list */
+  .dlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .dlist li {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .dlist li:last-child {
+    border-bottom: 0;
+  }
+  .dlist li.cur .nm b {
+    color: var(--spruce);
+  }
+  .pick {
+    justify-content: center;
+  }
+  .nm {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .nm b {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .meta {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .cf {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .cf small {
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .acts2 {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .rn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .rn .inp {
+    margin-top: 0;
+    flex: 1;
+  }
+
+  /* Side by side */
+  .cmp th small {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .cmp thead th {
+    vertical-align: bottom;
+  }
+  .dn,
+  .best {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dn i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .best {
+    font-weight: 600;
+  }
+  .mut {
+    color: var(--muted);
+  }
+  .cmp-m {
+    display: none;
+  }
+  .pickers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .pickers select {
+    width: 100%;
+    height: 44px;
+    margin-top: 4px;
+    padding: 0 8px;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-size: 15px;
+  }
+  .mlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mlist li {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    padding: 12px 16px;
+  }
+  .ml {
+    grid-column: 1 / -1;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .ml small {
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 6px;
+    font-size: 13px;
+  }
+  .mv {
+    display: flex;
+    flex-direction: column;
+    font-size: 17px;
+  }
+  .mv > small {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 899px) {
+  .pg-compare {
+    .dlist li {
+      grid-template-columns: 32px minmax(0, 1fr) auto;
+      gap: 4px 12px;
+    }
+    .acts2 {
+      grid-column: 2 / -1;
+      margin-left: -8px;
+    }
+    .cmp-d {
+      display: none;
+    }
+    .cmp-m {
+      display: block;
+    }
+  }
+}
