@@ -22,6 +22,7 @@ export interface AppState {
   constraints: Stored["constraints"];
   deals: Deal[];
   activeId: string | null;
+  branding?: Stored["branding"];
 }
 export type StorageProblem = "read" | "save" | "clear";
 export interface StorageStatus {
@@ -48,6 +49,7 @@ export function toView(st: Stored): AppState {
     constraints: st.constraints,
     deals: st.deals,
     activeId: d ? d.id : null,
+    branding: st.branding,
   };
 }
 
@@ -68,7 +70,7 @@ function fromView(v: AppState): Stored {
     deals = [...deals, d];
     activeId = d.id;
   }
-  return { v: 2, deals, activeId, scenarios: v.scenarios, constraints: v.constraints };
+  return { v: 2, deals, activeId, scenarios: v.scenarios, constraints: v.constraints, ...(v.branding ? { branding: v.branding } : {}) };
 }
 
 /** Phase 1 → Phase 2: the single property becomes the open deal, with its plan, actuals, scenarios and targets. */

@@ -7,7 +7,7 @@ import { parseNumber } from "@/lib/validation";
 import { type FieldDef, toDisplay, toEngine } from "./fields";
 
 const SOURCES: AssumptionSource[] = ["estimate", "listing", "bill", "quote", "document"];
-const SOURCE_LABEL: Record<AssumptionSource, string> = {
+export const SOURCE_LABEL: Record<AssumptionSource, string> = {
   estimate: "Estimate",
   listing: "From listing",
   bill: "From a bill",

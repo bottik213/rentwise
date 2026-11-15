@@ -159,6 +159,11 @@ export default function ResultsPage() {
           <Link href="/analyze" className="btn btn-quiet btn-sm">
             All inputs
           </Link>
+          {s.activeId && (
+            <Link href={`/report/${s.activeId}`} className="btn btn-quiet btn-sm">
+              Report
+            </Link>
+          )}
           <button type="button" onClick={markOwned} className="btn btn-primary btn-sm">
             {s.plan ? "Re-lock plan and track actuals" : "Mark as owned"} <Arrow />
           </button>

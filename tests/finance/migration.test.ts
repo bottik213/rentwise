@@ -149,3 +149,18 @@ describe("v2 schema stays readable", () => {
     expect(parsed!.constraints.minIrr).toBe(0.1);
   });
 });
+
+describe("branding is kept by every kind of edit", () => {
+  it("survives page edits through the open-deal view", async () => {
+    const st = await load();
+    st.setStored((s) => ({ ...s, branding: { company: "Lee Rentals", accent: "#8a1c3c" } }));
+    st.setAppState((s) => ({ ...s, property: DEMO_PROPERTY }));
+    st.setAppState((s) => ({ ...s, constraints: { minMonthlyCashFlow: 10_000 } }));
+    expect(JSON.parse(mem.get(KEY)!).branding).toEqual({ company: "Lee Rentals", accent: "#8a1c3c" });
+  });
+  it("rejects an SVG or oversized logo", async () => {
+    const st = await load();
+    expect(st.setStored((s) => ({ ...s, branding: { logo: "data:image/svg+xml;base64,PHN2Zz4=" } }))).toBe(false);
+    expect(st.setStored((s) => ({ ...s, branding: { logo: `data:image/png;base64,${"A".repeat(300_000)}` } }))).toBe(false);
+  });
+});

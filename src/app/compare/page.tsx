@@ -126,6 +126,7 @@ export default function ComparePage() {
                     </span>
                     <span className="acts2">
                       <button type="button" className="lnk" onClick={() => open(d.id, "/results")}>Open</button>
+                      <Link href={`/report/${d.id}`} className="lnk">Report</Link>
                       <button type="button" className="lnk" onClick={() => setRenaming({ id: d.id, draft: d.inputs.nickname ?? "" })}>Rename</button>
                       <button type="button" className="lnk" onClick={() => duplicateDeal(d.id)}>Duplicate</button>
                       <button

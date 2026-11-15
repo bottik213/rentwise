@@ -97,6 +97,15 @@ export const DealSchema = z.object({
   actuals: z.array(ActualMonthSchema).max(600),
 });
 
+/** Report branding, kept in this browser only. The logo is a PNG or JPG data URL up to 200 KB (SVG is not accepted). */
+export const BrandingSchema = z.object({
+  name: z.string().max(60).optional(),
+  company: z.string().max(60).optional(),
+  contact: z.string().max(120).optional(),
+  accent: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  logo: z.string().max(280_000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional(),
+});
+
 /** Phase 2 storage ("rentwise:v2"): many properties. Scenarios and targets are yours, so they apply to every deal. */
 export const StoredStateSchema = z.object({
   v: z.literal(2),
@@ -104,6 +113,8 @@ export const StoredStateSchema = z.object({
   activeId: z.string().nullable(),
   scenarios,
   constraints,
+  // Optional: v2 data saved before reports existed must keep parsing, or every property would load as empty.
+  branding: BrandingSchema.optional(),
 });
 
 /** Parse a user-typed number: "$250,000" → 250000. Empty or junk → null. */

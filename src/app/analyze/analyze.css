@@ -182,7 +182,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   .pg-inputs .sumc {
     background: #173b2e;
     color: #f3f1eb;
