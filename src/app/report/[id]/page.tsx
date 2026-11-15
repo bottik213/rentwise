@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Report } from "@/components/report/Report";
+import { SharePanel } from "@/components/report/SharePanel";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
 import { accentProblem, readLogo } from "@/lib/branding";
 import { setStored, useAppState, type Stored } from "@/lib/storage";
@@ -81,7 +82,7 @@ function BrandingPanel({ b }: { b: Branding }) {
 export default function ReportPage() {
   const s = useAppState();
   const { id } = useParams<{ id: string }>();
-  const [branding, setOpen] = useState(false);
+  const [panel, setPanel] = useState<"branding" | "share" | null>(null);
   const deal = s?.deals.find((d) => d.id === id);
   const name = deal?.inputs.nickname || "Property";
 
@@ -114,14 +115,18 @@ export default function ReportPage() {
         <div className="rbar noprint">
           <Link href="/results" onClick={() => setStored((x) => ({ ...x, activeId: deal.id }))} className="lnk">← Back to the analysis</Link>
           <span className="sp" />
-          <button type="button" className="btn btn-quiet btn-sm" aria-expanded={branding} onClick={() => setOpen((o) => !o)}>
-            {branding ? "Hide branding" : "Branding"}
+          <button type="button" className="btn btn-quiet btn-sm" aria-expanded={panel === "branding"} onClick={() => setPanel((o) => (o === "branding" ? null : "branding"))}>
+            Branding
+          </button>
+          <button type="button" className="btn btn-quiet btn-sm" aria-expanded={panel === "share"} onClick={() => setPanel((o) => (o === "share" ? null : "share"))}>
+            Share link
           </button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
             Download PDF
           </button>
         </div>
-        {branding && <BrandingPanel b={s.branding ?? {}} />}
+        {panel === "branding" && <BrandingPanel b={s.branding ?? {}} />}
+        {panel === "share" && <SharePanel deal={deal} s={s} />}
         <Report data={{ inputs: deal.inputs, isExample: deal.isExample, scenarios: s.scenarios, constraints: s.constraints, branding: s.branding }} generated={new Date()} />
       </div>
     </div>

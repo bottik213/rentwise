@@ -106,6 +106,32 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
+  .shr {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .shr .inp {
+    flex: 1;
+    min-width: 0;
+    margin-top: 0;
+  }
+  .rshare {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    background: var(--card);
+  }
+  .rshare p {
+    flex: 1 1 320px;
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
   .logo-row {
     display: flex;
     align-items: center;

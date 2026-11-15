@@ -59,7 +59,7 @@ test("the report shows the projection, refuses a low-contrast accent, and prints
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await page.getByRole("link", { name: "Report", exact: true }).click();
-  await expect(page).toHaveURL(/\/report\//);
+  await expect(page).toHaveURL(/\/report\//, { timeout: 15_000 }); // the one server-rendered route can cold-start on Vercel
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Example duplex");
   await expect(page.getByRole("row", { name: /^IRR over 10 years/ })).toContainText("9.29%");
 
@@ -73,4 +73,33 @@ test("the report shows the projection, refuses a low-contrast accent, and prints
   await expect(page.getByRole("banner")).toBeHidden();
   await expect(page.getByRole("button", { name: "Download PDF" })).toBeHidden();
   await expect(page.getByRole("note").filter({ hasText: "Important." })).toContainText("not financial, investment, tax, legal or mortgage advice");
+});
+
+test("a share link opens read-only in a fresh browser, saves on request, and a broken link explains itself", async ({ page, browser, baseURL }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+  await page.getByRole("link", { name: "Report", exact: true }).click();
+  await page.getByRole("button", { name: "Share link" }).click();
+  await expect(page.getByText("Anyone with the link can see these numbers")).toBeVisible();
+  await page.getByRole("button", { name: "I understand, create the link" }).click();
+  const url = await page.getByLabel("Share link").inputValue();
+  expect(url).toMatch(/\/r#v1\.[A-Za-z0-9_-]+$/);
+
+  const fresh = await browser.newContext({ baseURL });
+  const other = await fresh.newPage();
+  await other.goto(url);
+  await expect(other.getByRole("heading", { level: 1 })).toHaveText("Example duplex");
+  await expect(other.getByText("Shared report, read-only.")).toBeVisible();
+  await expect(other.getByRole("row", { name: /^IRR over 10 years/ })).toContainText("9.29%");
+  expect(await other.evaluate(() => localStorage.getItem("rentwise:v2"))).toBeNull(); // nothing saved by just looking
+
+  await other.getByRole("button", { name: "Save to my RentWise" }).click();
+  await expect(other).toHaveURL(/\/results$/);
+  await expect(other.getByRole("heading", { level: 1 })).toContainText("Example duplex");
+  expect(await other.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v2")!).deals.length)).toBe(1);
+
+  await other.goto(url.slice(0, -12));
+  await expect(other.getByRole("heading", { name: "This link is broken or incomplete" })).toBeVisible();
+  await fresh.close();
 });
