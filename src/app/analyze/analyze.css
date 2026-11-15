@@ -111,26 +111,6 @@
   .inp input {
     font-size: 17px;
   }
-  .seg {
-    display: inline-flex;
-    margin-left: auto;
-    border: 1px solid var(--line-2);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .seg button {
-    height: 26px;
-    min-width: 32px;
-    border: 0;
-    background: transparent;
-    font: 600 13px var(--font-public-sans), sans-serif;
-    color: var(--ink-2);
-    cursor: pointer;
-  }
-  .seg button[aria-pressed="true"] {
-    background: var(--ink);
-    color: var(--paper);
-  }
   .sum {
     position: sticky;
     top: 24px;

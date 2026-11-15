@@ -4,9 +4,9 @@ import { underwrite } from "./underwriting";
 
 /** Illustrative defaults, shown and editable in the UI. Not market data. */
 export const DEFAULT_SCENARIOS: Record<ScenarioName, ScenarioAdjustments> = {
-  conservative: { rentChangePct: -0.05, vacancyPts: 0.03, maintenancePts: 0.02, capexPts: 0.03, fixedCostChangePct: 0.1 },
-  base: { rentChangePct: 0, vacancyPts: 0, maintenancePts: 0, capexPts: 0, fixedCostChangePct: 0 },
-  optimistic: { rentChangePct: 0.03, vacancyPts: -0.02, maintenancePts: -0.01, capexPts: -0.01, fixedCostChangePct: 0 },
+  conservative: { rentChangePct: -0.05, vacancyPts: 0.03, maintenancePts: 0.02, capexPts: 0.03, fixedCostChangePct: 0.1, rentGrowthPts: -0.02, expenseGrowthPts: 0.01, valueGrowthPts: -0.02 },
+  base: { rentChangePct: 0, vacancyPts: 0, maintenancePts: 0, capexPts: 0, fixedCostChangePct: 0, rentGrowthPts: 0, expenseGrowthPts: 0, valueGrowthPts: 0 },
+  optimistic: { rentChangePct: 0.03, vacancyPts: -0.02, maintenancePts: -0.01, capexPts: -0.01, fixedCostChangePct: 0, rentGrowthPts: 0.02, expenseGrowthPts: 0, valueGrowthPts: 0.02 },
 };
 
 const clampRate = (x: number) => Math.min(1, Math.max(0, x));

@@ -50,3 +50,19 @@ describe("badges", () => {
     expect(ceilingBadge(offerCeiling(DEMO_PROPERTY, {}), DEMO_PROPERTY.purchasePrice).st).toBe("none");
   });
 });
+
+describe("ceilingReason", () => {
+  it("names the binding target and what the other one would allow", async () => {
+    const { ceilingByConstraint } = await import("../../src/lib/finance/offer-ceiling");
+    const { ceilingReason } = await import("../../src/lib/verdict");
+    const c = { minMonthlyCashFlow: 0, minCashOnCash: 0.08 };
+    const r = offerCeiling(DEMO_PROPERTY, c);
+    expect(ceilingReason(r, ceilingByConstraint(DEMO_PROPERTY, c), c)).toBe("Cash-on-cash ≥ 8% is the binding limit; cash flow would allow $263,099.");
+  });
+
+  it("says nothing when no target limits the price", async () => {
+    const { ceilingReason } = await import("../../src/lib/verdict");
+    const c = { maxUpfrontCash: 1e12 };
+    expect(ceilingReason(offerCeiling(DEMO_PROPERTY, c), [], c)).toBeNull();
+  });
+});

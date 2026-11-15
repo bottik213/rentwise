@@ -2,6 +2,7 @@
 import { NumberField } from "@/components/forms/NumberField";
 import type { FieldDef } from "@/components/forms/fields";
 import type { ConstraintKey, OfferCeilingResult, OfferConstraints, PropertyInputs } from "@/lib/finance/types";
+import { ceilingReason, targetText } from "@/lib/verdict";
 import { pct, usd } from "@/lib/format";
 import { setAppState } from "@/lib/storage";
 import { AnimatedNumber } from "./AnimatedNumber";
@@ -11,12 +12,18 @@ const CONSTRAINT_LABEL: Record<ConstraintKey, string> = {
   minMonthlyCashFlow: "minimum cash flow",
   minCashOnCash: "minimum cash-on-cash",
   maxUpfrontCash: "maximum upfront cash",
+  minCapRate: "minimum cap rate",
+  minDscr: "minimum DSCR",
+  minIrr: "minimum IRR",
 };
 const ROWS: [ConstraintKey, Def, number][] = [
   ["minMonthlyCashFlow", { label: "Min. cash flow after reserves", kind: "money", suffix: "/mo", help: "", min: -100_000, max: 1_000_000 }, 20_000],
   // Floor at 0: the price search assumes a higher price never helps, which a negative target can break.
   ["minCashOnCash", { label: "Min. cash-on-cash", kind: "rate", suffix: "%/yr", help: "", min: 0, max: 100 }, 0.08],
   ["maxUpfrontCash", { label: "Max. upfront cash", kind: "money", help: "", min: 0, max: 100_000_000 }, 10_000_000],
+  ["minCapRate", { label: "Min. cap rate", kind: "rate", suffix: "%", help: "", min: 0, max: 100 }, 0.06],
+  ["minDscr", { label: "Min. DSCR (NOI ÷ mortgage)", kind: "number", suffix: "×", help: "", min: 0, max: 10 }, 1.25],
+  ["minIrr", { label: "Min. IRR over the hold", kind: "rate", suffix: "%/yr", help: "", min: 0, max: 100 }, 0.1],
 ];
 
 const list = (keys: ConstraintKey[]) => keys.map((k) => CONSTRAINT_LABEL[k]).join(" and ");
@@ -69,7 +76,11 @@ function Scale({ asking, ceiling }: { asking: number; ceiling: number }) {
   );
 }
 
-export function OfferCeiling({ property, constraints, result: r }: { property: PropertyInputs; constraints: OfferConstraints; result: OfferCeilingResult }) {
+type Alone = { key: ConstraintKey; result: OfferCeilingResult }[];
+const aloneText = (r: OfferCeilingResult) =>
+  r.status === "infeasible" ? "No price works" : r.status === "feasible" ? (r.hitSearchBound ? "Doesn't limit the price" : usd(r.price)) : "";
+
+export function OfferCeiling({ property, constraints, result: r, alone }: { property: PropertyInputs; constraints: OfferConstraints; result: OfferCeilingResult; alone: Alone }) {
   const setC = (patch: Partial<OfferConstraints>) =>
     setAppState((x) => {
       const next = { ...x.constraints, ...patch };
@@ -78,6 +89,7 @@ export function OfferCeiling({ property, constraints, result: r }: { property: P
     });
   const asking = property.purchasePrice;
   const feasible = r.status === "feasible" && !r.hitSearchBound ? r : null;
+  const reason = feasible ? ceilingReason(feasible, alone, constraints) : null;
 
   return (
     <div className="card">
@@ -90,7 +102,9 @@ export function OfferCeiling({ property, constraints, result: r }: { property: P
             <>
               <p className="big neg">No price works</p>
               <p style={{ margin: "8px 0 0", color: "var(--ink-2)" }}>
-                Even at $1, the {list(r.failingConstraints)} target fails{r.failingScenario === "conservative" ? " in the conservative scenario" : ""}. Loosen a target, or revisit rent, costs and financing.
+                {r.scanned
+                  ? `No price we tested meets the ${list(r.failingConstraints)} target${r.failingScenario === "conservative" ? " in the conservative scenario" : ""}. IRR is checked on a scan of prices, so a very narrow range could be missed. Loosen a target, or revisit rent, costs and financing.`
+                  : `Even at $1, the ${list(r.failingConstraints)} target fails${r.failingScenario === "conservative" ? " in the conservative scenario" : ""}. Loosen a target, or revisit rent, costs and financing.`}
               </p>
             </>
           )}
@@ -109,8 +123,14 @@ export function OfferCeiling({ property, constraints, result: r }: { property: P
               <Scale asking={asking} ceiling={feasible.price} />
               <p style={{ margin: "24px 0 0", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                 <span className="chip">
-                  Limited by <span>{list(feasible.limitingConstraints)}</span>
-                  {feasible.limitingScenario === "conservative" ? " in the conservative scenario" : ""}
+                  {feasible.limitingConstraints.length ? (
+                    <>
+                      Limited by <span>{list(feasible.limitingConstraints)}</span>
+                      {feasible.limitingScenario === "conservative" ? " in the conservative scenario" : ""}
+                    </>
+                  ) : (
+                    "Highest price that passed every target"
+                  )}
                 </span>
                 <span className="num" style={{ color: "var(--ink-2)" }}>
                   <span className={feasible.deltaFromAsking < 0 ? "neg" : "pos"}>{usd(feasible.deltaFromAsking, { signed: true })}</span> vs. asking {usd(asking)}
@@ -121,6 +141,12 @@ export function OfferCeiling({ property, constraints, result: r }: { property: P
                   ? `You have ${usd(feasible.deltaFromAsking)} of room above the asking price.`
                   : `The asking price is ${usd(-feasible.deltaFromAsking)} more than your targets allow.`}
               </p>
+              {reason && <p style={{ margin: "8px 0 0", color: "var(--ink-2)" }}>{reason}</p>}
+              {feasible.irrNonMonotonic && (
+                <p className="note" style={{ margin: "8px 0 0" }}>
+                  IRR didn&apos;t fall steadily as the price rose, so some lower prices miss your IRR target while this one meets it. This is the highest price that passed.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -176,8 +202,33 @@ export function OfferCeiling({ property, constraints, result: r }: { property: P
           )}
         </div>
       </div>
+      {alone.length > 1 && (
+        <table className="ct num" style={{ marginTop: 24 }}>
+          <caption className="sr-only">The ceiling each target allows on its own</caption>
+          <thead>
+            <tr>
+              <th scope="col">Each target on its own</th>
+              <th scope="col">Highest price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {alone.map((a) => {
+              const binding = !!feasible?.limitingConstraints.includes(a.key);
+              return (
+                <tr key={a.key} className={binding ? "s" : ""}>
+                  <th scope="row">
+                    {targetText(a.key, constraints)}
+                    {binding ? " (binding)" : ""}
+                  </th>
+                  <td className={a.result.status === "infeasible" ? "neg" : ""}>{aloneText(a.result)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
       <p className="note" style={{ marginTop: 24 }}>
-        Each price we test recalculates the loan, down payment and percentage closing costs. Rent, property tax and insurance stay at your inputs. This is a modeling result under your assumptions, not an appraisal or advice.
+        Each price we test recalculates the loan, down payment and percentage closing costs. Rent, property tax and insurance stay at your inputs. The IRR target uses the projection above, before income tax. This is a modeling result under your assumptions, not an appraisal or advice.
       </p>
     </div>
   );

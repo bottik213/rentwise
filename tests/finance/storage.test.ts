@@ -143,3 +143,29 @@ describe("storage guard", () => {
     expect(setAppState((s) => ({ ...s, constraints: { minMonthlyCashFlow: 20_000 } }))).toBe(true);
   });
 });
+
+describe("Phase 2 fields survive a save and reload", () => {
+  beforeEach(() => {
+    mem.clear();
+    vi.resetModules();
+  });
+
+  it("keeps the new targets, the projection assumptions and the scenario growth deltas", async () => {
+    const { DEMO_PROPERTY } = await import("../../src/data/demo-property");
+    const { setAppState } = await load();
+    const projection = { holdYears: 15, rentGrowth: 0.02, expenseGrowth: 0.04, valueGrowth: 0.01, sellingCostPct: 0.07 };
+    setAppState((s) => ({
+      ...s,
+      property: { ...DEMO_PROPERTY, projection },
+      constraints: { minMonthlyCashFlow: 0, minCapRate: 0.06, minDscr: 1.25, minIrr: 0.1 },
+      scenarios: { ...s.scenarios, conservative: { ...s.scenarios.conservative, rentGrowthPts: -0.03 } },
+    }));
+    vi.resetModules();
+    const again = await load();
+    let seen: { property: { projection?: unknown } | null; constraints: unknown; scenarios: { conservative: { rentGrowthPts?: number } } } | undefined;
+    again.setAppState((s) => (seen = s));
+    expect(seen!.property!.projection).toEqual(projection);
+    expect(seen!.constraints).toEqual({ minMonthlyCashFlow: 0, minCapRate: 0.06, minDscr: 1.25, minIrr: 0.1 });
+    expect(seen!.scenarios.conservative.rentGrowthPts).toBe(-0.03);
+  });
+});

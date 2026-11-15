@@ -10,7 +10,7 @@ export interface MonthPoint {
 }
 
 /** 1-2-5 step ticks covering [lo, hi]. */
-function niceTicks(lo: number, hi: number) {
+export function niceTicks(lo: number, hi: number) {
   const raw = (hi - lo) / 4 || 10_000;
   const mag = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 5, 10].map((x) => x * mag).find((x) => x >= raw)!;
@@ -29,7 +29,7 @@ function Column({ m, plan, y, zero, last, first, cur }: { m: MonthPoint; plan: n
   const d = m.actual - plan;
   return (
     <div ref={tip.ref} className={`col tw ${first ? "first" : ""} ${last ? "last" : ""} ${tip.open ? "open" : ""}`}>
-      <span className={`bar ${below ? "below" : ""} ${cur ? "cur" : ""}`} style={{ bottom: `${bottom}%`, height: `${Math.max(0.6, top - bottom)}%` }} />
+      <span className={`cb ${below ? "below" : ""} ${cur ? "cur" : ""}`} style={{ bottom: `${bottom}%`, height: `${Math.max(0.6, top - bottom)}%` }} />
       <span className="val num" style={{ bottom: below ? undefined : `calc(${top}% + 6px)`, top: below ? `calc(${100 - bottom}% + 6px)` : undefined }}>
         {usd(m.actual, { exact: true })}
       </span>
@@ -60,7 +60,7 @@ export function PlanVsActual({ points, plan }: { points: MonthPoint[]; plan: num
   const y = (v: number) => ((v - lo) / (hi - lo)) * 100;
   const cols = { gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` };
   return (
-    <div className="card">
+    <div className="card chart">
       <div className="legend" aria-hidden>
         <span>
           <i className="sw1" />

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Chevron } from "@/components/Icons";
+import { DEFAULT_SCENARIOS } from "@/lib/finance/scenarios";
 import type { ScenarioAdjustments, ScenarioName, Underwriting } from "@/lib/finance/types";
 import { pct, usd } from "@/lib/format";
 import { setAppState } from "@/lib/storage";
@@ -12,6 +13,9 @@ const ADJ: [key: keyof ScenarioAdjustments, label: string, unit: string, min: nu
   ["maintenancePts", "Maintenance", "pts", -100, 100],
   ["capexPts", "CapEx reserve", "pts", -100, 100],
   ["fixedCostChangePct", "Fixed costs: tax, insurance, HOA, utilities", "%", -100, 500],
+  ["rentGrowthPts", "Rent growth, projection", "pts/yr", -20, 20],
+  ["expenseGrowthPts", "Expense growth, projection", "pts/yr", -20, 20],
+  ["valueGrowthPts", "Value growth, projection", "pts/yr", -20, 20],
 ];
 const COLS: [ScenarioName, string][] = [
   ["conservative", "Conservative"],
@@ -120,7 +124,7 @@ export function Scenarios({ scenarios, results }: { scenarios: Record<ScenarioNa
                         {name === "base" ? (
                           <span style={{ color: "var(--muted)" }}>0</span>
                         ) : (
-                          <PctInput label={`${col} ${label} ${unit}`} value={scenarios[name][key]} min={min} max={max} onCommit={(v) => set(name, key, v)} />
+                          <PctInput label={`${col} ${label} ${unit}`} value={scenarios[name][key] ?? DEFAULT_SCENARIOS[name][key] ?? 0} min={min} max={max} onCommit={(v) => set(name, key, v)} />
                         )}
                       </td>
                     ))}

@@ -13,10 +13,11 @@ import { NumberField } from "@/components/forms/NumberField";
 import { MetricCard } from "@/components/results/MetricCard";
 import { Waterfall } from "@/components/results/Metrics";
 import { OfferCeiling } from "@/components/results/OfferCeiling";
+import { Projection } from "@/components/results/Projection";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
 import { Scenarios } from "@/components/results/Scenarios";
 import { NextSteps, Sensitivity } from "@/components/results/Sensitivity";
-import { offerCeiling } from "@/lib/finance/offer-ceiling";
+import { ceilingByConstraint, offerCeiling } from "@/lib/finance/offer-ceiling";
 import { runScenarios } from "@/lib/finance/scenarios";
 import { sensitivity } from "@/lib/finance/sensitivity";
 import type { AssumptionSource, PropertyInputs } from "@/lib/finance/types";
@@ -72,6 +73,7 @@ export default function ResultsPage() {
   const results = runScenarios(p, s.scenarios);
   const u = results.base; // headline = base column, so they can never disagree
   const ceiling = offerCeiling(p, s.constraints, s.scenarios.conservative);
+  const alone = ceilingByConstraint(p, s.constraints, s.scenarios.conservative);
   const rows = sensitivity(p);
   const v = verdict(u, s.constraints, p.monthlyRent);
   const cush = cushion(u, p.monthlyRent);
@@ -304,6 +306,16 @@ export default function ResultsPage() {
               <Scenarios scenarios={s.scenarios} results={results} />
             </section>
 
+            <section aria-labelledby="pj-h">
+              <div className="shead">
+                <h2 className="disp" id="pj-h">
+                  Over the years you own it
+                </h2>
+                <p>Cash flow, equity and the sale over your hold period, before income tax. Growth rates are assumptions you set, not predictions.</p>
+              </div>
+              <Projection property={p} scenarios={s.scenarios} />
+            </section>
+
             <section aria-labelledby="oc-h">
               <div className="shead">
                 <h2 className="disp" id="oc-h">
@@ -311,7 +323,7 @@ export default function ResultsPage() {
                 </h2>
                 <p>The highest price you could pay and still meet every target you turned on. A walk-away price under these assumptions, not a recommendation.</p>
               </div>
-              <OfferCeiling property={p} constraints={s.constraints} result={ceiling} />
+              <OfferCeiling property={p} constraints={s.constraints} result={ceiling} alone={alone} />
             </section>
 
             <section aria-labelledby="se-h">

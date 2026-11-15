@@ -7,8 +7,8 @@ export type NumericKey = {
 export interface FieldDef {
   key: NumericKey;
   label: string;
-  /** money: user types dollars, engine gets cents. rate: user types %, engine gets a fraction. */
-  kind: "money" | "rate" | "years";
+  /** money: user types dollars, engine gets cents. rate: user types %, engine gets a fraction. number: as typed. */
+  kind: "money" | "rate" | "years" | "number";
   suffix?: string;
   help: string;
   min: number;

@@ -34,6 +34,17 @@ export interface PropertyInputs {
   capexPct: Rate;
 
   sources?: Partial<Record<keyof PropertyInputs, AssumptionSource>>;
+  /** Multi-year assumptions (F1). Absent → DEFAULT_PROJECTION. */
+  projection?: ProjectionAssumptions;
+}
+
+/** Illustrative multi-year assumptions, not predictions. Growth applies from year 2. */
+export interface ProjectionAssumptions {
+  holdYears: number;
+  rentGrowth: Rate;
+  expenseGrowth: Rate;
+  valueGrowth: Rate;
+  sellingCostPct: Rate;
 }
 
 /** Monthly figures unless named otherwise. */
@@ -78,6 +89,10 @@ export interface ScenarioAdjustments {
   maintenancePts: Rate;
   capexPts: Rate;
   fixedCostChangePct: Rate;
+  /** Growth deltas for the projection, in points. Absent → the default for that scenario. */
+  rentGrowthPts?: Rate;
+  expenseGrowthPts?: Rate;
+  valueGrowthPts?: Rate;
 }
 
 export type ScenarioName = "conservative" | "base" | "optimistic";
@@ -86,10 +101,17 @@ export interface OfferConstraints {
   minMonthlyCashFlow?: Cents;
   minCashOnCash?: Rate;
   maxUpfrontCash?: Cents;
+  /** Annual NOI / price. */
+  minCapRate?: Rate;
+  /** NOI / P&I; a property with no mortgage payment always passes. */
+  minDscr?: number;
+  /** IRR over the projection's hold period (F1), before income tax. */
+  minIrr?: Rate;
   mustPassConservative?: boolean;
 }
 
-export type ConstraintKey = "minMonthlyCashFlow" | "minCashOnCash" | "maxUpfrontCash";
+export type ConstraintKey = "minMonthlyCashFlow" | "minCashOnCash" | "maxUpfrontCash" | "minCapRate" | "minDscr" | "minIrr";
+export const CONSTRAINT_KEYS: ConstraintKey[] = ["minMonthlyCashFlow", "minCashOnCash", "maxUpfrontCash", "minCapRate", "minDscr", "minIrr"];
 
 export type OfferCeilingResult =
   | {
@@ -102,8 +124,16 @@ export type OfferCeilingResult =
       hitSearchBound: boolean;
       metrics: Underwriting;
       conservativeMetrics: Underwriting | null;
+      /** Set only with an IRR target: a coarse scan saw IRR pass, fail and pass again as price fell. */
+      irrNonMonotonic?: boolean;
     }
-  | { status: "infeasible"; failingConstraints: ConstraintKey[]; failingScenario: ScenarioName }
+  | {
+      status: "infeasible";
+      failingConstraints: ConstraintKey[];
+      failingScenario: ScenarioName;
+      /** Set only with an IRR target: no price on the coarse scan met every target (a narrow window could be missed). */
+      scanned?: boolean;
+    }
   | { status: "no-constraints" };
 
 export const ACTUAL_CATEGORIES = [

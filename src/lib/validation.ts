@@ -5,6 +5,15 @@ const MAX_CENTS = 10_000_000_000; // $100M
 const cents = z.number().int().min(0).max(MAX_CENTS);
 const rate = z.number().min(0).max(1);
 const source = z.enum(["estimate", "listing", "bill", "quote", "document"]);
+const growth = z.number().min(-0.2).max(0.2);
+
+export const ProjectionSchema = z.object({
+  holdYears: z.number().int().min(1).max(30),
+  rentGrowth: growth,
+  expenseGrowth: growth,
+  valueGrowth: growth,
+  sellingCostPct: z.number().min(0).max(0.2),
+});
 
 /** Engine-unit schema (cents, fractions). Guards everything read back from localStorage. */
 export const PropertyInputsSchema = z.object({
@@ -30,6 +39,7 @@ export const PropertyInputsSchema = z.object({
   managementPct: rate,
   capexPct: rate,
   sources: z.record(z.string(), source).optional(),
+  projection: ProjectionSchema.optional(),
 }).refine((p) => p.closingCostMode === "amount" || p.closingCostValue <= 0.2, {
   message: "Closing costs above 20% of price are not supported",
   path: ["closingCostValue"],
@@ -47,6 +57,9 @@ const scenario = z.object({
   maintenancePts: z.number().min(-1).max(1),
   capexPts: z.number().min(-1).max(1),
   fixedCostChangePct: z.number().min(-1).max(5),
+  rentGrowthPts: growth.optional(),
+  expenseGrowthPts: growth.optional(),
+  valueGrowthPts: growth.optional(),
 });
 
 export const StoredStateSchema = z.object({
@@ -60,6 +73,9 @@ export const StoredStateSchema = z.object({
     minMonthlyCashFlow: z.number().int().optional(),
     minCashOnCash: z.number().min(-1).max(1).optional(),
     maxUpfrontCash: cents.optional(),
+    minCapRate: z.number().min(0).max(1).optional(),
+    minDscr: z.number().min(0).max(100).optional(),
+    minIrr: z.number().min(-1).max(5).optional(),
     mustPassConservative: z.boolean().optional(),
   }),
   actuals: z.array(ActualMonthSchema).max(600),

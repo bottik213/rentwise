@@ -1,5 +1,5 @@
 import type { Status } from "@/components/Icons";
-import type { OfferCeilingResult, OfferConstraints, Underwriting } from "./finance/types";
+import type { ConstraintKey, OfferCeilingResult, OfferConstraints, Underwriting } from "./finance/types";
 import { pct, usd } from "./format";
 
 export interface Judged {
@@ -72,4 +72,39 @@ export function ceilingBadge(r: OfferCeilingResult, asking: number): Judged {
   if (r.price < asking) return { st: "bad", label: "Below asking" };
   if ((r.price - asking) / asking < 0.02) return { st: "warn", label: "Just above asking" };
   return { st: "good", label: "Above asking" };
+}
+
+const pctText = (r: number) => `${Number((r * 100).toFixed(2))}%`;
+const SHORT: Record<ConstraintKey, string> = {
+  minMonthlyCashFlow: "cash flow",
+  minCashOnCash: "cash-on-cash",
+  maxUpfrontCash: "upfront cash",
+  minCapRate: "cap rate",
+  minDscr: "DSCR",
+  minIrr: "IRR",
+};
+
+/** A target as a short rule, e.g. "Cash-on-cash ≥ 8%". */
+export function targetText(key: ConstraintKey, c: OfferConstraints): string {
+  const v = c[key] as number;
+  switch (key) {
+    case "minMonthlyCashFlow": return `Cash flow ≥ ${usd(v)}/mo`;
+    case "minCashOnCash": return `Cash-on-cash ≥ ${pctText(v)}`;
+    case "maxUpfrontCash": return `Upfront cash ≤ ${usd(v)}`;
+    case "minCapRate": return `Cap rate ≥ ${pctText(v)}`;
+    case "minDscr": return `DSCR ≥ ${v}×`;
+    case "minIrr": return `IRR ≥ ${pctText(v)}`;
+  }
+}
+
+/** One plain sentence naming the binding target and what the others alone would allow. */
+export function ceilingReason(r: OfferCeilingResult, alone: { key: ConstraintKey; result: OfferCeilingResult }[], c: OfferConstraints): string | null {
+  if (r.status !== "feasible" || r.hitSearchBound || !r.limitingConstraints.length) return null;
+  const bind = r.limitingConstraints;
+  const rules = bind.map((k) => targetText(k, c)).join(" and ");
+  const head = `${rules} ${bind.length > 1 ? "are" : "is"} the binding limit${r.limitingScenario === "conservative" ? " in the conservative scenario" : ""}`;
+  const others = alone
+    .filter((a) => !bind.includes(a.key) && a.result.status === "feasible")
+    .map((a) => (a.result.status === "feasible" && a.result.hitSearchBound ? `${SHORT[a.key]} doesn't limit the price` : `${SHORT[a.key]} would allow ${usd(a.result.status === "feasible" ? a.result.price : 0)}`));
+  return others.length ? `${head}; ${others.join(", ")}.` : `${head}.`;
 }
