@@ -19,13 +19,13 @@ test("Phase 1 data migrates on the first visit, with nothing lost", async ({ pag
 
   await go("/results");
   await expect(page.getByRole("checkbox", { name: "Use Min. cash-on-cash" })).toBeChecked();
-  const v2 = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v2")!));
+  const v2 = await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v3")!));
   expect(v2.deals).toHaveLength(1);
   expect(await page.evaluate(() => localStorage.getItem("rentwise:v1"))).toBe(V1);
 
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Example duplex");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v2")!).activeId)).toBe(v2.activeId);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v3")!).activeId)).toBe(v2.activeId);
   expect(errors).toEqual([]);
 });
 
@@ -92,12 +92,12 @@ test("a share link opens read-only in a fresh browser, saves on request, and a b
   await expect(other.getByRole("heading", { level: 1 })).toHaveText("Example duplex");
   await expect(other.getByText("Shared report, read-only.")).toBeVisible();
   await expect(other.getByRole("row", { name: /^IRR over 10 years/ })).toContainText("9.29%");
-  expect(await other.evaluate(() => localStorage.getItem("rentwise:v2"))).toBeNull(); // nothing saved by just looking
+  expect(await other.evaluate(() => localStorage.getItem("rentwise:v3"))).toBeNull(); // nothing saved by just looking
 
   await other.getByRole("button", { name: "Save to my RentWise" }).click();
   await expect(other).toHaveURL(/\/results$/);
   await expect(other.getByRole("heading", { level: 1 })).toContainText("Example duplex");
-  expect(await other.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v2")!).deals.length)).toBe(1);
+  expect(await other.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v3")!).deals.length)).toBe(1);
 
   await other.goto(url.slice(0, -12));
   await expect(other.getByRole("heading", { name: "This link is broken or incomplete" })).toBeVisible();

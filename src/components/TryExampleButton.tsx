@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { DEMO_PROPERTY } from "@/data/demo-property";
 import { DEFAULT_SCENARIOS } from "@/lib/finance/scenarios";
+import { EMPTY_LEDGER } from "@/lib/ledger/types";
 import type { ScenarioName } from "@/lib/finance/types";
 import { EMPTY_STORED, type Deal, newId, setStored, type Stored } from "@/lib/storage";
 import { PropertyInputsSchema } from "@/lib/validation";
@@ -26,13 +27,14 @@ export function TryExampleButton({ className }: { className: string }) {
         const ok = setStored((s) => {
           const ex = s.deals.find((d) => d.isExample);
           const lost: string[] = [];
-          if (ex && (JSON.stringify(ex.inputs) !== EXAMPLE_INPUTS || ex.plan || ex.actuals.length))
-            lost.push(`your edits to the example${ex.actuals.length ? ` and its ${ex.actuals.length} recorded month(s)` : ""}`);
+          const entries = ex ? ex.ledger.payments.length + ex.ledger.expenses.length + ex.ledger.leases.length + ex.ledger.maintenance.length : 0;
+          if (ex && (JSON.stringify(ex.inputs) !== EXAMPLE_INPUTS || ex.plan || ex.actuals.length || entries))
+            lost.push(`your edits to the example${ex.actuals.length ? ` and its ${ex.actuals.length} recorded month(s)` : ""}${entries ? ` and its ${entries} ledger entr${entries === 1 ? "y" : "ies"}` : ""}`);
           if (settings(s) !== DEFAULT_SETTINGS) lost.push("your scenario and target settings");
           loaded = !lost.length || confirm(`Loading the example resets ${lost.join(" and ")}. Your other properties are kept. Continue?`);
           if (!loaded) return s;
           const now = new Date().toISOString();
-          const fresh: Deal = { id: ex?.id ?? newId(), createdAt: ex?.createdAt ?? now, updatedAt: now, inputs: DEMO_PROPERTY, isExample: true, plan: null, actuals: [] };
+          const fresh: Deal = { id: ex?.id ?? newId(), createdAt: ex?.createdAt ?? now, updatedAt: now, inputs: DEMO_PROPERTY, isExample: true, plan: null, actuals: [], ledger: EMPTY_LEDGER };
           const deals = ex ? s.deals.map((d) => (d.id === ex.id ? fresh : d)) : [...s.deals, fresh];
           return { ...s, deals, activeId: fresh.id, scenarios: EMPTY_STORED.scenarios, constraints: EMPTY_STORED.constraints };
         });

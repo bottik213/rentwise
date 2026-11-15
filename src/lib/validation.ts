@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ACTUAL_CATEGORIES, type ActualMonth, type PropertyInputs } from "./finance/types";
+import type { Ledger } from "./ledger/types";
 
 const MAX_CENTS = 10_000_000_000; // $100M
 const cents = z.number().int().min(0).max(MAX_CENTS);
@@ -97,6 +98,53 @@ export const DealSchema = z.object({
   actuals: z.array(ActualMonthSchema).max(600),
 });
 
+const isoDate = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
+const isoMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+const id = z.string().min(1).max(64);
+const positive = cents.refine((c) => c > 0, "Must be more than $0");
+
+/** Phase 3 ledger. Tenants are nicknames only; no contact details, IDs or documents can be stored. */
+export const LedgerSchema = z.object({
+  leases: z.array(z.object({
+    id,
+    tenantNickname: z.string().trim().min(1).max(40),
+    startDate: isoDate,
+    endDate: isoDate.nullable(),
+    trackFrom: isoDate,
+    monthlyRent: positive,
+    dueDay: z.number().int().min(1).max(28),
+    graceDays: z.number().int().min(0).max(31),
+    lateFee: z.union([
+      z.object({ kind: z.literal("flat"), amount: cents }),
+      z.object({ kind: z.literal("percent"), amount: z.number().min(0).max(0.5) }),
+    ]).nullable(),
+    depositAmount: cents,
+    depositReceivedDate: isoDate.nullable(),
+    status: z.enum(["active", "ended"]),
+  })).max(20),
+  payments: z.array(z.object({ id, leaseId: id, date: isoDate, amount: positive, forMonth: isoMonth, note: z.string().max(120).optional() })).max(5000),
+  waivers: z.array(z.object({ leaseId: id, forMonth: isoMonth })).max(1000),
+  depositEvents: z.array(z.object({ id, leaseId: id, date: isoDate, kind: z.enum(["returned", "applied_to_rent", "applied_to_damages"]), amount: positive })).max(200),
+  expenses: z.array(z.object({
+    id,
+    date: isoDate,
+    category: z.enum(["propertyTax", "insurance", "utilities", "hoa", "repairsMaintenance", "management", "otherOperating", "mortgagePI", "capex"]),
+    amount: positive,
+    vendor: z.string().max(60).optional(),
+    note: z.string().max(120).optional(),
+    maintenanceId: id.optional(),
+  })).max(5000),
+  maintenance: z.array(z.object({
+    id,
+    title: z.string().trim().min(1).max(60),
+    openedDate: isoDate,
+    status: z.enum(["open", "in_progress", "done"]),
+    doneDate: isoDate.optional(),
+    recurring: z.object({ everyMonths: z.number().int().min(1).max(60) }).optional(),
+  })).max(500),
+  monthModes: z.array(z.object({ month: isoMonth, mode: z.enum(["ledger", "manual"]) })).max(600),
+}) as unknown as z.ZodType<Ledger>;
+
 /** Report branding, kept in this browser only. The logo is a PNG or JPG data URL up to 200 KB (SVG is not accepted). */
 export const BrandingSchema = z.object({
   name: z.string().max(60).optional(),
@@ -107,7 +155,8 @@ export const BrandingSchema = z.object({
 });
 
 /** Phase 2 storage ("rentwise:v2"): many properties. Scenarios and targets are yours, so they apply to every deal. */
-export const StoredStateSchema = z.object({
+/** Phase 2 storage ("rentwise:v2"). Still read, never written, and migrated to v3 losslessly. */
+export const StoredStateV2Schema = z.object({
   v: z.literal(2),
   deals: z.array(DealSchema).max(50),
   activeId: z.string().nullable(),
@@ -116,6 +165,10 @@ export const StoredStateSchema = z.object({
   // Optional: v2 data saved before reports existed must keep parsing, or every property would load as empty.
   branding: BrandingSchema.optional(),
 });
+
+/** Phase 3 storage ("rentwise:v3"): every deal carries its ledger. Manual monthly totals stay in `actuals`. */
+export const DealV3Schema = DealSchema.extend({ ledger: LedgerSchema });
+export const StoredStateSchema = StoredStateV2Schema.extend({ v: z.literal(3), deals: z.array(DealV3Schema).max(50) });
 
 /** Parse a user-typed number: "$250,000" → 250000. Empty or junk → null. */
 export function parseNumber(raw: string): number | null {

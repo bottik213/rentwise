@@ -12,7 +12,7 @@ vi.stubGlobal("localStorage", {
 });
 
 const load = () => import("../../src/lib/storage");
-const KEY = "rentwise:v2";
+const KEY = "rentwise:v3";
 const V1 = "rentwise:v1";
 const peek = (st: Awaited<ReturnType<typeof load>>) => {
   let v: AppState | undefined;
@@ -39,9 +39,10 @@ describe("migration from Phase 1 storage (v1 → v2)", () => {
     expect(v.deals).toHaveLength(1);
     expect(v.activeId).toBe(v.deals[0].id);
     expect(mem.get(V1)).toBe(raw); // a rollback to Phase 1 still finds its data
-    const v2 = JSON.parse(mem.get(KEY)!);
-    expect(v2.v).toBe(2);
-    expect(v2.deals[0].actuals).toEqual(fixture.actuals);
+    const v3 = JSON.parse(mem.get(KEY)!);
+    expect(v3.v).toBe(3);
+    expect(v3.deals[0].actuals).toEqual(fixture.actuals);
+    expect(v3.deals[0].ledger.monthModes).toEqual(fixture.actuals.map((a) => ({ month: a.month, mode: "manual" })));
   });
 
   it("keeps the same deal id across reloads once migrated", async () => {
@@ -81,13 +82,13 @@ describe("migration from Phase 1 storage (v1 → v2)", () => {
     expect(mem.get(V1)).toBe("{broken");
   });
 
-  it("clear my data removes both versions", async () => {
+  it("clear my data removes every version", async () => {
     mem.set(V1, JSON.stringify(fixture));
+    mem.set("rentwise:v2", "{}");
     const st = await load();
     st.getStorageStatus();
     expect(st.clearAppData()).toBe(true);
-    expect(mem.has(V1)).toBe(false);
-    expect(mem.has(KEY)).toBe(false);
+    expect([...mem.keys()]).toEqual([]);
   });
 });
 
@@ -162,5 +163,49 @@ describe("branding is kept by every kind of edit", () => {
     const st = await load();
     expect(st.setStored((s) => ({ ...s, branding: { logo: "data:image/svg+xml;base64,PHN2Zz4=" } }))).toBe(false);
     expect(st.setStored((s) => ({ ...s, branding: { logo: `data:image/png;base64,${"A".repeat(300_000)}` } }))).toBe(false);
+  });
+});
+
+describe("migration from Phase 2 storage (v2 → v3)", () => {
+  it("a real v2 state gains empty ledgers, its monthly totals become manual months, and v2 is left untouched", async () => {
+    const v2 = (await import("../fixtures/v2-state.json")).default;
+    const raw = JSON.stringify(v2);
+    mem.set("rentwise:v2", raw);
+    const st = await load();
+    const v = peek(st);
+    expect(v.deals.map((d) => d.id)).toEqual(v2.deals.map((d) => d.id));
+    expect(v.deals.map((d) => d.actuals)).toEqual(v2.deals.map((d) => d.actuals));
+    expect(v.deals.map((d) => d.plan)).toEqual(v2.deals.map((d) => d.plan));
+    expect(v.activeId).toBe(v2.activeId);
+    expect(v.constraints).toEqual(v2.constraints);
+    expect(v.deals[0].ledger.monthModes).toEqual(v2.deals[0].actuals.map((a) => ({ month: a.month, mode: "manual" })));
+    expect(v.deals[0].ledger.payments).toEqual([]);
+    expect(mem.get("rentwise:v2")).toBe(raw);
+    expect(JSON.parse(mem.get(KEY)!).v).toBe(3);
+  });
+  it("v2 wins over v1 when both exist, and imports accept v1, v2 and v3 files", async () => {
+    const v2 = (await import("../fixtures/v2-state.json")).default;
+    mem.set("rentwise:v2", JSON.stringify(v2));
+    mem.set(V1, JSON.stringify(fixture));
+    const st = await load();
+    expect(peek(st).deals).toHaveLength(v2.deals.length);
+    expect(st.parseAnyVersion(v2)!.v).toBe(3);
+    expect(st.parseAnyVersion(fixture)!.v).toBe(3);
+    expect(st.parseAnyVersion(JSON.parse(mem.get(KEY)!))!.deals).toHaveLength(v2.deals.length);
+  });
+  it("the ledger survives page edits and a reload", async () => {
+    const st = await load();
+    st.setAppState((s) => ({ ...s, property: DEMO_PROPERTY }));
+    const lease = { id: "L1", tenantNickname: "Unit A tenant", startDate: "2026-01-01", endDate: null, trackFrom: "2026-01-01", monthlyRent: 245_000, dueDay: 1, graceDays: 5, lateFee: null, depositAmount: 245_000, depositReceivedDate: "2026-01-01", status: "active" as const };
+    expect(st.setAppState((s) => ({ ...s, ledger: { ...s.ledger, leases: [lease] } }))).toBe(true);
+    st.setAppState((s) => ({ ...s, constraints: { minMonthlyCashFlow: 10_000 } }));
+    vi.resetModules();
+    expect(peek(await load()).ledger.leases).toEqual([lease]);
+  });
+  it("rejects a tenant record with anything but a short nickname", async () => {
+    const st = await load();
+    st.setAppState((s) => ({ ...s, property: DEMO_PROPERTY }));
+    const bad = { id: "L1", tenantNickname: "", startDate: "2026-01-01", endDate: null, trackFrom: "2026-01-01", monthlyRent: 245_000, dueDay: 31, graceDays: 5, lateFee: null, depositAmount: 0, depositReceivedDate: null, status: "active" as const };
+    expect(st.setAppState((s) => ({ ...s, ledger: { ...s.ledger, leases: [bad] } }))).toBe(false);
   });
 });

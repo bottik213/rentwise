@@ -3,10 +3,12 @@ import { useSyncExternalStore } from "react";
 import type { z } from "zod";
 import { DEFAULT_SCENARIOS } from "./finance/scenarios";
 import type { ActualMonth, PropertyInputs } from "./finance/types";
-import { DealSchema, StoredStateSchema, StoredStateV1Schema } from "./validation";
+import { EMPTY_LEDGER, type Ledger } from "./ledger/types";
+import { DealV3Schema, StoredStateSchema, StoredStateV1Schema, StoredStateV2Schema } from "./validation";
 
 export type Stored = z.infer<typeof StoredStateSchema>;
-export type Deal = z.infer<typeof DealSchema>;
+export type Deal = z.infer<typeof DealV3Schema>;
+type StoredV2 = z.infer<typeof StoredStateV2Schema>;
 type Plan = Deal["plan"];
 
 /**
@@ -23,6 +25,8 @@ export interface AppState {
   deals: Deal[];
   activeId: string | null;
   branding?: Stored["branding"];
+  /** The open deal's ledger (Phase 3). A new property starts with EMPTY_LEDGER. */
+  ledger: Ledger;
 }
 export type StorageProblem = "read" | "save" | "clear";
 export interface StorageStatus {
@@ -30,11 +34,12 @@ export interface StorageStatus {
   hasUnsavedChanges: boolean;
 }
 
-const KEY = "rentwise:v2";
-/** Phase 1 data. Read once and migrated; never written or deleted except by "Clear my data", so a rollback still finds it. */
+const KEY = "rentwise:v3";
+/** Older data. Read once and migrated; never written or deleted except by "Clear my data", so a rollback still finds it. */
+const V2_KEY = "rentwise:v2";
 const V1_KEY = "rentwise:v1";
 
-export const EMPTY_STORED: Stored = { v: 2, deals: [], activeId: null, scenarios: DEFAULT_SCENARIOS, constraints: { minMonthlyCashFlow: 0 } };
+export const EMPTY_STORED: Stored = { v: 3, deals: [], activeId: null, scenarios: DEFAULT_SCENARIOS, constraints: { minMonthlyCashFlow: 0 } };
 
 export const newId = (): string => globalThis.crypto.randomUUID();
 
@@ -50,6 +55,7 @@ export function toView(st: Stored): AppState {
     deals: st.deals,
     activeId: d ? d.id : null,
     branding: st.branding,
+    ledger: d?.ledger ?? EMPTY_LEDGER,
   };
 }
 
@@ -61,32 +67,40 @@ function fromView(v: AppState): Stored {
   if (!v.property) activeId = null; // "no open property": every saved deal is kept
   else if (activeId && deals.some((d) => d.id === activeId)) {
     deals = deals.map((d) =>
-      d.id !== activeId || (d.inputs === v.property && d.plan === v.plan && d.actuals === v.actuals && d.isExample === v.isExample)
+      d.id !== activeId || (d.inputs === v.property && d.plan === v.plan && d.actuals === v.actuals && d.isExample === v.isExample && d.ledger === v.ledger)
         ? d
-        : { ...d, inputs: v.property!, isExample: v.isExample, plan: v.plan, actuals: v.actuals, updatedAt: now },
+        : { ...d, inputs: v.property!, isExample: v.isExample, plan: v.plan, actuals: v.actuals, ledger: v.ledger, updatedAt: now },
     );
   } else {
-    const d: Deal = { id: newId(), createdAt: now, updatedAt: now, inputs: v.property, isExample: v.isExample, plan: v.plan, actuals: v.actuals };
+    const d: Deal = { id: newId(), createdAt: now, updatedAt: now, inputs: v.property, isExample: v.isExample, plan: v.plan, actuals: v.actuals, ledger: v.ledger };
     deals = [...deals, d];
     activeId = d.id;
   }
-  return { v: 2, deals, activeId, scenarios: v.scenarios, constraints: v.constraints, ...(v.branding ? { branding: v.branding } : {}) };
+  return { v: 3, deals, activeId, scenarios: v.scenarios, constraints: v.constraints, ...(v.branding ? { branding: v.branding } : {}) };
 }
 
-/** Phase 1 → Phase 2: the single property becomes the open deal, with its plan, actuals, scenarios and targets. */
+/** Phase 2 → Phase 3: every deal gets an empty ledger, and its monthly totals become manual months. */
+export function migrateV2(data: unknown): Stored | null {
+  const p = StoredStateV2Schema.safeParse(data);
+  if (!p.success) return null;
+  const deals = p.data.deals.map((d) => ({ ...d, ledger: { ...EMPTY_LEDGER, monthModes: d.actuals.map((a) => ({ month: a.month, mode: "manual" as const })) } }));
+  return { ...p.data, v: 3, deals };
+}
+
+/** Phase 1 → Phase 3: the single property becomes the open deal, with its plan, actuals, scenarios and targets. */
 export function migrateV1(data: unknown, now = new Date().toISOString(), id = newId()): Stored | null {
   const p = StoredStateV1Schema.safeParse(data);
   if (!p.success) return null;
   const s = p.data;
   const inputs = s.property ?? s.plan?.inputs ?? null; // a locked plan alone still carries its actuals
-  const deals: Deal[] = inputs ? [{ id, createdAt: s.plan?.lockedAt ?? now, updatedAt: now, inputs, isExample: s.isExample, plan: s.plan, actuals: s.actuals }] : [];
-  return { v: 2, deals, activeId: s.property ? id : null, scenarios: s.scenarios, constraints: s.constraints };
+  const deals: StoredV2["deals"] = inputs ? [{ id, createdAt: s.plan?.lockedAt ?? now, updatedAt: now, inputs, isExample: s.isExample, plan: s.plan, actuals: s.actuals }] : [];
+  return migrateV2({ v: 2, deals, activeId: s.property ? id : null, scenarios: s.scenarios, constraints: s.constraints } satisfies StoredV2);
 }
 
-/** A v2 file, or a v1 file migrated. null when it is neither. */
+/** A v3 file, or an older one migrated. null when it is none of them. */
 export function parseAnyVersion(data: unknown): Stored | null {
-  const v2 = StoredStateSchema.safeParse(data);
-  return v2.success ? v2.data : migrateV1(data);
+  const v3 = StoredStateSchema.safeParse(data);
+  return v3.success ? v3.data : (migrateV2(data) ?? migrateV1(data));
 }
 
 let stored: Stored | null = null; // null until read on the client
@@ -98,10 +112,10 @@ const listeners = new Set<() => void>();
 
 function read(): Stored {
   let raw: string | null;
-  let rawV1: string | null = null;
+  let older: string | null = null;
   try {
     raw = localStorage.getItem(KEY);
-    if (raw === null) rawV1 = localStorage.getItem(V1_KEY);
+    if (raw === null) older = localStorage.getItem(V2_KEY) ?? localStorage.getItem(V1_KEY);
   } catch {
     loadFailed = true;
     storageStatus = { problem: "read", hasUnsavedChanges: false };
@@ -111,11 +125,11 @@ function read(): Stored {
   storageStatus = SAVED;
   try {
     if (raw) return StoredStateSchema.safeParse(JSON.parse(raw)).data ?? EMPTY_STORED; // corrupt data never crashes the app
-    if (!rawV1) return EMPTY_STORED;
-    const migrated = migrateV1(JSON.parse(rawV1));
+    if (!older) return EMPTY_STORED;
+    const migrated = parseAnyVersion(JSON.parse(older));
     if (!migrated) return EMPTY_STORED;
     try {
-      localStorage.setItem(KEY, JSON.stringify(migrated)); // pin the new ids; v1 stays as it was
+      localStorage.setItem(KEY, JSON.stringify(migrated)); // pin the new ids; older keys stay as they were
     } catch {
       /* still usable in memory; the next edit retries the save */
     }
@@ -227,7 +241,7 @@ export function duplicateDeal(id: string): boolean {
     const d = s.deals.find((x) => x.id === id);
     if (!d) return s;
     const base = (d.inputs.nickname || "Untitled property").slice(0, 53);
-    const copy: Deal = { ...d, id: newId(), createdAt: now, updatedAt: now, inputs: { ...d.inputs, nickname: `${base} (copy)` }, plan: null, actuals: [] };
+    const copy: Deal = { ...d, id: newId(), createdAt: now, updatedAt: now, inputs: { ...d.inputs, nickname: `${base} (copy)` }, plan: null, actuals: [], ledger: EMPTY_LEDGER };
     return { ...s, deals: [...s.deals, copy] };
   });
 }
@@ -266,6 +280,7 @@ export function clearAppData(): boolean {
   try {
     // Phase 1 data first: if the second removal fails, a reload must not re-migrate data the user asked to delete.
     localStorage.removeItem(V1_KEY);
+    localStorage.removeItem(V2_KEY);
     localStorage.removeItem(KEY);
   } catch {
     storageStatus = { ...storageStatus, problem: "clear" };

@@ -5,6 +5,7 @@ import { PageFooter } from "@/components/DataControls";
 import { NEW_PROPERTY_DEFAULTS } from "@/components/forms/fields";
 import { PropertyForm } from "@/components/forms/PropertyForm";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
+import { EMPTY_LEDGER } from "@/lib/ledger/types";
 import { setAppState, useAppState } from "@/lib/storage";
 import "./analyze.css";
 
@@ -43,7 +44,7 @@ export default function AnalyzePage() {
             const accepted = setAppState((x) =>
               // Saving the full form makes it your property: it is no longer labeled synthetic or reset without asking.
               // A blank form becomes a new property; the one you had open stays in your list.
-              editing ? { ...x, property, isExample: false } : { ...x, activeId: null, property, isExample: false, plan: null, actuals: [] },
+              editing ? { ...x, property, isExample: false } : { ...x, activeId: null, property, isExample: false, plan: null, actuals: [], ledger: EMPTY_LEDGER },
             );
             if (accepted) router.push("/results");
             else if (!editing && s.deals.length >= 50) alert("You have 50 saved properties, the most this browser keeps. Delete one under Compare first.");

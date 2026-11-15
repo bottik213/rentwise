@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Arrow } from "@/components/Icons";
 import { Report } from "@/components/report/Report";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
+import { EMPTY_LEDGER } from "@/lib/ledger/types";
 import { decodeShare, type DecodeResult } from "@/lib/share";
 import { newId, setStored } from "@/lib/storage";
 import "../results/results.css";
@@ -60,7 +61,7 @@ export default function SharedReportPage() {
     const id = newId();
     const ok = setStored((s) => ({
       ...s,
-      deals: [...s.deals, { id, createdAt: now, updatedAt: now, inputs: p.inputs, isExample: p.isExample, plan: p.owned?.plan ?? null, actuals: p.owned?.actuals ?? [] }],
+      deals: [...s.deals, { id, createdAt: now, updatedAt: now, inputs: p.inputs, isExample: p.isExample, plan: p.owned?.plan ?? null, actuals: p.owned?.actuals ?? [], ledger: EMPTY_LEDGER }],
       activeId: id,
     }));
     if (ok) router.push("/results");

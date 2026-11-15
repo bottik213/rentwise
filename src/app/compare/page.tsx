@@ -132,7 +132,7 @@ export default function ComparePage() {
                       <button
                         type="button"
                         className="lnk danger"
-                        onClick={() => confirm(`Delete ${nameOf(d)}${d.actuals.length ? ` and its ${d.actuals.length} recorded month(s)` : ""}? This can't be undone.`) && deleteDeal(d.id)}
+                        onClick={() => confirm(`Delete ${nameOf(d)}${d.actuals.length ? ` and its ${d.actuals.length} recorded month(s)` : ""}${d.ledger.payments.length + d.ledger.expenses.length ? " and its rent and expense entries" : ""}? This can't be undone.`) && deleteDeal(d.id)}
                       >
                         Delete
                       </button>

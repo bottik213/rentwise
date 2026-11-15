@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 /** The saved state with the open property's fields at the top, as the app sees it (storage v2). */
 const appState = (page: Page) =>
   page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem("rentwise:v2")!);
+    const s = JSON.parse(localStorage.getItem("rentwise:v3")!);
     const d = s.deals.find((x: { id: string }) => x.id === s.activeId);
     return { ...s, property: d?.inputs ?? null, plan: d?.plan ?? null, actuals: d?.actuals ?? [], isExample: d?.isExample ?? false };
   });
@@ -122,7 +122,7 @@ test("empty states and clearing data", async ({ page }) => {
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Clear my data" }).click();
   await expect(page).toHaveURL(/\/$/);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v2"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBeNull();
 });
 
 test("all-cash purchase: no P&I, price-independent cash flow, cash-on-cash ceiling", async ({ page }) => {
@@ -166,7 +166,7 @@ test("export downloads the saved data as JSON", async ({ page }) => {
   expect(download.suggestedFilename()).toBe("rentwise-data.json");
   const fs = await import("node:fs/promises");
   const saved = JSON.parse(await fs.readFile((await download.path())!, "utf8"));
-  expect(saved.v).toBe(2);
+  expect(saved.v).toBe(3);
   expect(saved.deals[0].inputs.nickname).toBe("Example duplex (synthetic)");
 });
 
@@ -273,14 +273,14 @@ test("loading the example protects edited inputs, scenarios and targets", async 
     if (label.startsWith("Conservative")) await page.getByText("Edit scenario assumptions").click();
     await page.getByLabel(label, { exact: true }).fill(value);
     await closeQuick(page);
-    const saved = await page.evaluate(() => localStorage.getItem("rentwise:v2"));
+    const saved = await page.evaluate(() => localStorage.getItem("rentwise:v3"));
     await page.goto("/");
     let asked = "";
     page.once("dialog", (d) => { asked = d.message(); void d.dismiss(); });
     await page.getByRole("button", { name: "Try the example property" }).click();
     expect(asked).toContain("Loading the example resets");
     await expect(page).toHaveURL(/\/$/);
-    expect(await page.evaluate(() => localStorage.getItem("rentwise:v2"))).toBe(saved);
+    expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
 
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Try the example property" }).click();

@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { localToday } from "@/lib/ledger/dates";
+import { combinedActuals } from "@/lib/ledger/to-actuals";
 import { buildShareLink, type SharePayload } from "@/lib/share";
 import type { Deal, Stored } from "@/lib/storage";
 
@@ -8,7 +10,9 @@ export function SharePanel({ deal, s }: { deal: Deal; s: Pick<Stored, "scenarios
   const [withActuals, setWithActuals] = useState(false);
   const [link, setLink] = useState<{ url: string; logoDropped: boolean } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const months = deal.plan ? deal.actuals.length : 0;
+  // A link carries monthly totals (manual and ledger-derived), never the ledger entries themselves.
+  const recorded = deal.plan ? combinedActuals(deal.actuals, deal.ledger, localToday()).months : [];
+  const months = recorded.length;
 
   const create = async () => {
     const payload: SharePayload = {
@@ -17,7 +21,7 @@ export function SharePanel({ deal, s }: { deal: Deal; s: Pick<Stored, "scenarios
       scenarios: s.scenarios,
       constraints: s.constraints,
       ...(s.branding ? { branding: s.branding } : {}),
-      ...(withActuals && deal.plan ? { owned: { plan: deal.plan, actuals: deal.actuals } } : {}),
+      ...(withActuals && deal.plan ? { owned: { plan: deal.plan, actuals: recorded } } : {}),
     };
     try {
       setLink(await buildShareLink(location.origin, payload));
