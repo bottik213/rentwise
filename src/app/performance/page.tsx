@@ -15,6 +15,11 @@ import { underwrite } from "@/lib/finance/underwriting";
 import { monthlyForecast, variance } from "@/lib/finance/variance";
 import { ACTUAL_CATEGORIES, type ActualMonth, type Cents, type Underwriting, type VarianceContributor } from "@/lib/finance/types";
 import { monthLabel, usd } from "@/lib/format";
+import { RentTab } from "@/components/ledger/RentTab";
+import { localToday } from "@/lib/ledger/dates";
+import { missingBills } from "@/lib/ledger/bills";
+import { combinedActuals } from "@/lib/ledger/to-actuals";
+import type { Ledger } from "@/lib/ledger/types";
 import { setAppState, useAppState } from "@/lib/storage";
 import { ActualMonthSchema } from "@/lib/validation";
 import "./performance.css";
@@ -50,12 +55,16 @@ function monthSentence(u: Underwriting, m: ActualMonth) {
   return `${cap(phrase(ms[0]))}.${rest}`;
 }
 
+const TABS = [["overview", "Overview"], ["rent", "Rent"]] as const;
+type Tab = (typeof TABS)[number][0];
+
 const judge = (t: number) => (t < 0 ? { st: "bad" as const, label: "Below plan" } : { st: "good" as const, label: t > 0 ? "Above plan" : "On plan" });
 
 export default function PerformancePage() {
   const s = useAppState();
   const [draft, setDraft] = useState<ActualMonth | null>(null);
   const [formRevision, setFormRevision] = useState(0);
+  const [tab, setTab] = useState<Tab>("overview");
   if (!s) return <PageSkeleton />;
 
   if (!s.plan) {
@@ -89,7 +98,14 @@ export default function PerformancePage() {
   const plan = s.plan;
   const u = underwrite(plan.inputs); // the locked plan, never the live inputs
   const forecast = monthlyForecast(u);
-  const actuals = s.actuals;
+  const today = localToday();
+  // Manual months and ledger months together, never both for one month (see combinedActuals).
+  const combined = combinedActuals(s.actuals, s.ledger, today);
+  const actuals = combined.months;
+  const setLedger = (fn: (l: Ledger) => Ledger) => setAppState((x) => ({ ...x, ledger: fn(x.ledger) }));
+  const ledgerMonths = Object.keys(combined.mode).filter((m) => combined.mode[m] === "ledger");
+  const bills = missingBills(ledgerMonths, s.ledger.expenses, forecast);
+  const billMonths = [...new Set(bills.map((b) => b.date.slice(0, 7)))];
   const blank = (month: string): ActualMonth => ({ month, ...forecast, capex: 0 });
   const upcoming = actuals.length ? nextMonth(actuals[actuals.length - 1].month) : plan.lockedAt.slice(0, 7);
   const form = draft ?? blank(upcoming);
@@ -137,11 +153,43 @@ export default function PerformancePage() {
               <Link href="/results">Back to analysis</Link>
             </p>
           </div>
-          <a href="#record" className="btn btn-primary">
+          <a href="#record" className="btn btn-primary" onClick={() => setTab("overview")}>
             Record {longMonth(upcoming).split(" ")[0]} <Arrow />
           </a>
         </header>
 
+        <div className="tabs" role="tablist" aria-label="Owned property">
+          {TABS.map(([k, label]) => (
+            <button key={k} type="button" role="tab" id={`tab-${k}`} aria-selected={tab === k} aria-controls={`panel-${k}`} onClick={() => setTab(k)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "rent" && (
+          <div role="tabpanel" id="panel-rent" aria-labelledby="tab-rent">
+            <RentTab ledger={s.ledger} setLedger={setLedger} today={today} plannedRent={plan.inputs.monthlyRent} />
+          </div>
+        )}
+
+        {tab === "overview" && (
+        <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" className="tabp">
+        {bills.length > 0 && (
+          <section className="card bills" aria-labelledby="bills-h">
+            <p id="bills-h" style={{ margin: 0, fontWeight: 600 }}>
+              {bills.length} usual bill{bills.length === 1 ? " isn't" : "s aren't"} recorded for {billMonths.map(monthLabel).join(", ")}
+            </p>
+            <p style={{ margin: 0, color: "var(--ink-2)" }}>
+              Months built from your ledger count only what you record, so a month without its mortgage, tax or insurance looks better than it really was.
+            </p>
+            <div>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setLedger((x) => ({ ...x, expenses: [...x.expenses, ...bills.map((b) => ({ ...b, id: crypto.randomUUID() }))] }))}>
+                Add them at the planned amounts
+              </button>
+            </div>
+            <p className="note" style={{ margin: 0 }}>Each one is a dated expense you can change or delete later if the real bill differed.</p>
+          </section>
+        )}
         {rl && latest ? (
           <>
             <div className="lead">
@@ -312,14 +360,18 @@ export default function PerformancePage() {
                         <li key={a.month} className="rmr">
                           <span>{monthLabel(a.month)}</span>
                           <span className={v < 0 ? "neg" : ""}>{usd(v, { exact: true })}</span>
-                          <span>
-                            <button type="button" className="lnk" onClick={() => setDraft(a)}>
-                              Edit
-                            </button>
-                            <button type="button" className="lnk danger" onClick={() => remove(a.month)}>
-                              Delete
-                            </button>
-                          </span>
+                          {combined.mode[a.month] === "ledger" ? (
+                            <span className="tag" title="Built from your rent and expense entries">Ledger</span>
+                          ) : (
+                            <span>
+                              <button type="button" className="lnk" onClick={() => setDraft(a)}>
+                                Edit
+                              </button>
+                              <button type="button" className="lnk danger" onClick={() => remove(a.month)}>
+                                Delete
+                              </button>
+                            </span>
+                          )}
                         </li>
                       );
                     })}
@@ -399,6 +451,9 @@ export default function PerformancePage() {
             </div>
           </form>
         </section>
+
+        </div>
+        )}
 
         <PageFooter>RentWise is a modeling tool, not financial or tax advice. Keep your own receipts and statements; this page only compares the numbers you enter.</PageFooter>
       </div>

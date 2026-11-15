@@ -346,6 +346,110 @@
   }
 }
 
+.pg-actuals {
+  /* Tabs: the same look as the header nav, current tab underlined */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: -24px;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs button {
+    border: 0;
+    background: transparent;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 15px;
+    color: var(--ink-2);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 150ms ease;
+  }
+  .tabs button:hover {
+    color: var(--ink);
+  }
+  .tabs button[aria-selected="true"] {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--spruce);
+  }
+  .tabp,
+  .ltab {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .tabp {
+    gap: 48px;
+  }
+  .lf {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 4px;
+  }
+  .lf .full {
+    grid-column: 1 / -1;
+  }
+  .lf .inp select,
+  .lf .inp input[type="date"] {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: var(--ink);
+    outline: none;
+  }
+  .lch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ldl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px 24px;
+    margin: 16px 0 0;
+  }
+  .ldl dt {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .ldl dd {
+    margin: 2px 0 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .ldl dd small {
+    display: block;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .fee {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .mut {
+    color: var(--muted);
+  }
+  .bills {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-color: var(--warn-line);
+    background: var(--warn-bg);
+  }
+}
+
 @media (max-width: 899px) {
   .pg-actuals {
     overflow-x: clip;
@@ -373,6 +477,9 @@
     .dr {
       grid-template-columns: 110px minmax(0, 1fr) 84px;
       font-size: 14px;
+    }
+    .opt {
+      display: none;
     }
     .rmh,
     .rmr {

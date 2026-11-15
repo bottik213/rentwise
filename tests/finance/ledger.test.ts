@@ -197,3 +197,19 @@ describe("recurring maintenance", () => {
     expect(addMonthsToDate("2024-01-31", 1)).toBe("2024-02-29");
   });
 });
+
+describe("usual monthly bills", () => {
+  it("lists only planned recurring bills a ledger month hasn't recorded, at the planned amount", async () => {
+    const { missingBills } = await import("../../src/lib/ledger/bills");
+    const { monthlyForecast } = await import("../../src/lib/finance/variance");
+    const planned = monthlyForecast(u);
+    const got = missingBills(["2026-01", "2026-02"], [exp("2026-01-05", "propertyTax", 31_000)], planned);
+    expect(got.filter((b) => b.date === "2026-01-01").map((b) => b.category)).toEqual(["mortgagePI", "insurance", "utilities", "management"]);
+    expect(got.filter((b) => b.date === "2026-02-01").map((b) => b.category)).toEqual(["mortgagePI", "propertyTax", "insurance", "utilities", "management"]);
+    expect(got.find((b) => b.category === "mortgagePI")!.amount).toBe(u.monthlyPI);
+    // With them added, those categories match the plan exactly: no phantom "better than plan".
+    const L = { ...EMPTY_LEDGER, expenses: got.map((b, i) => ({ ...b, id: `b${i}` })) };
+    const r = variance(u, combinedActuals([], L, "2026-03-20").months);
+    for (const k of ["mortgagePI", "insurance", "utilities", "management"]) expect(r.contributors.find((c) => c.category === k)!.impact).toBe(0);
+  });
+});
