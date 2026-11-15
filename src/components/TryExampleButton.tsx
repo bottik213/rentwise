@@ -37,6 +37,7 @@ export function TryExampleButton({ className }: { className: string }) {
           return { ...s, deals, activeId: fresh.id, scenarios: EMPTY_STORED.scenarios, constraints: EMPTY_STORED.constraints };
         });
         if (loaded && ok) router.push("/results");
+        else if (loaded) alert("The example couldn't be added. You may have 50 saved properties, the most this browser keeps: delete one under Compare first.");
       }}
     >
       Try the example property

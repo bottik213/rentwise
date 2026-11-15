@@ -30,10 +30,9 @@
   }
   .rh {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 24px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
     padding-bottom: 16px;
     border-bottom: 3px solid var(--spruce);
   }
@@ -57,9 +56,6 @@
     font-size: 14px;
     color: var(--muted);
   }
-  .rh .ttl {
-    text-align: right;
-  }
   .rh h1 {
     margin: 0;
     font-size: 36px;
@@ -81,8 +77,8 @@
     font-weight: 400;
     color: var(--muted);
   }
-  .ct {
-    width: 100%;
+  .card > .ct:first-child {
+    margin-top: 0;
   }
   .ct td.est {
     font-weight: 600;
@@ -165,9 +161,6 @@
   .pg-report {
     .rwrap {
       padding: 24px 16px 64px;
-    }
-    .rh .ttl {
-      text-align: left;
     }
     .rbar > a {
       flex-basis: 100%;

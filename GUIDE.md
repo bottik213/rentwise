@@ -14,6 +14,8 @@ $250,000 duplex renting for $2,450/mo.
 3. [Analysis screen](#3-analysis-screen)
 4. [Actuals screen](#4-actuals-screen)
 5. [Your data](#5-your-data)
+   - [Compare: your properties](#51-compare-your-properties)
+   - [Report and share link](#52-report-and-share-link)
 6. [Glossary of results](#6-glossary-of-results)
 
 ---
@@ -133,13 +135,14 @@ From the top, the page shows:
 | **The short version** | Two or three plain sentences: monthly and yearly cash flow after reserves, cash invested, cash-on-cash, and how far rent could fall before the property stops covering its costs. Its badge compares cash flow with **your own** minimum target (default $0): **Meets your target**, **Thin margin** (less than $100/mo above the target, or rent within 5% of break-even) or **Misses your target**. It is a comparison with your target, not a judgment of the deal. |
 | **The four numbers to know** | Cash flow after reserves, cash-on-cash, break-even rent and offer ceiling, each with a badge against your targets. Hover, tap or tab to a card to see what it means and how it's worked out. Below them: NOI, monthly P&I and total cash invested. |
 | **Where the rent goes** | Gross rent stepping down through vacancy, running costs, mortgage and CapEx reserve to what's left. |
-| Scenarios, Offer ceiling, What moves cash flow most | Described in 3.3 – 3.5. |
+| Scenarios, projection, offer ceiling, what moves cash flow most | Described in 3.3 – 3.6. |
 
 ### 3.1 Header buttons
 
 | Button | What it does |
 |---|---|
 | **All inputs** | Opens the full Inputs form. |
+| **Report** | Opens the investment report for this property (see [5.2](#52-report-and-share-link)). |
 | **Mark as owned** | Locks a snapshot of the current inputs as **the plan** and opens the Actuals screen. Later edits to the analysis don't change a locked plan. If a plan with recorded months already exists, the button reads **Re-lock plan and track actuals** and asks before replacing the plan. Your recorded months are kept and compared against the new plan. |
 
 ### 3.2 Quick assumptions (left sidebar)
@@ -174,7 +177,36 @@ example, that's −$257.39 (conservative), $65.36 (base) and $216.95/mo (optimis
 
 These defaults are illustrative, not forecasts.
 
-### 3.4 Offer ceiling
+Three more rows move the **projection's growth rates** in each scenario (see 3.4), in percentage points per year:
+**rent growth** (conservative −2, optimistic +2), **expense growth** (conservative +1, optimistic 0) and **value
+growth** (conservative −2, optimistic +2).
+
+### 3.4 Over the years you own it (projection)
+
+A year-by-year projection of the hold, **before income tax**. Year 1 is 12 × the monthly numbers above; growth starts
+in year 2.
+
+| Input | Unit | Allowed | Default | What it does |
+|---|---|---|---|---|
+| **Hold period** | years | 1 – 30, whole years | 10 | How long you own it. The projection sells at the end of the last year. |
+| **Rent growth** | %/yr | −20 – 20 | 3 | Rent and other income rise by this each year. |
+| **Expense growth** | %/yr | −20 – 20 | 3 | Tax, insurance, HOA, utilities and other fixed costs rise by this. Maintenance, management and the CapEx reserve stay a % of rent, so they follow rent. |
+| **Value growth** | %/yr | −20 – 20 | 3 | The property's value changes by this each year. Values can fall. |
+| **Selling costs** | % of sale | 0 – 20 | 6 | Commission, transfer tax and closing costs when you sell. |
+
+The **Conservative / Base / Optimistic** switch shows the projection under each scenario. You see the **IRR** (the
+yearly return once every year's cash flow and the sale are counted), the **equity multiple** (how many times your
+cash comes back), **total profit**, **net sale proceeds**, a chart of cash flow and one of equity (value minus loan
+balance) for each year, the sale summary, and a year-by-year table.
+
+Two choices are stated on screen: the **CapEx reserve counts as spent** every year, and your **initial cash reserve
+comes back at the sale**. The mortgage payment stops once the loan is paid off.
+
+**Example:** the defaults give an IRR of **9.29%**, an equity multiple of **2.30×** and total profit of **$110,826**
+over 10 years. Net sale proceeds are $164,922: $335,979 sale price, −$20,159 selling costs, −$160,898 loan payoff,
++$10,000 reserve back.
+
+### 3.5 Offer ceiling
 
 Finds the **highest purchase price that still meets every target you switch on**: an "offer ceiling under your
 assumptions". It is not an appraisal, a safe price or a recommendation to buy.
@@ -184,6 +216,9 @@ assumptions". It is not an appraisal, a safe price or a recommendation to buy.
 | **Min. cash flow after reserves** | $/mo | −$100,000 to $1,000,000 | Cash flow after reserves must be at least this much. On by default at $0. Switching it on starts at $200. |
 | **Min. cash-on-cash** | %/yr | 0 – 100 | Annual cash-on-cash must be at least this. Switching it on starts at 8%. |
 | **Max. upfront cash** | $ | $0 – $100,000,000 | Total cash invested must be at most this. Switching it on starts at $100,000. |
+| **Min. cap rate** | % | 0 – 100 | Cap rate (yearly NOI ÷ price) must be at least this. Switching it on starts at 6%. |
+| **Min. DSCR** | × | 0 – 10 | NOI ÷ mortgage payment must be at least this. Lenders often want 1.2–1.25. An all-cash purchase always passes. Switching it on starts at 1.25. |
+| **Min. IRR over the hold** | %/yr | 0 – 100 | The projection's IRR (3.4) must be at least this. Switching it on starts at 10%. |
 | **Must also pass the conservative scenario** | checkbox | on / off | The price must meet your targets in the conservative scenario as well as the base case. |
 
 Use the switch beside each target to turn it on; turn it off to ignore that target. While a target is off, its
@@ -197,15 +232,20 @@ and insurance stay at your inputs.**
 
 | State | Meaning |
 |---|---|
-| A price, e.g. **$223,017** | The ceiling. It shows the difference vs. asking (e.g. −$26,983), which target limits it, and cash flow, cash-on-cash, cash invested and P&I at that price. |
+| A price, e.g. **$223,017** | The ceiling. It shows the difference vs. asking (e.g. −$26,983), which target limits it, one sentence naming the binding target and what the others alone would allow, and cash flow, cash-on-cash, cash invested and P&I at that price. With two or more targets, a table lists the highest price each target allows **on its own**. |
 | **No price works** | Even at $1 a target fails, usually because rent can't cover operating costs. It names the failing target. |
 | **Not limited by your targets** | Every price up to the search limit meets them (common for all-cash purchases). Tighten or add a target. |
 | Turn on at least one target | No targets are switched on. |
 
 **Example:** min. cash flow $200/mo → ceiling **$223,017**, $26,983 below the $250,000 asking price, limited by
-minimum cash flow.
+minimum cash flow. With the default $0 cash-flow target plus min. cash-on-cash 8%, the ceiling is **$176,884** and
+the page says "Cash-on-cash ≥ 8% is the binding limit; cash flow would allow $263,099."
 
-### 3.5 What moves cash flow most (sensitivity)
+An IRR target can behave differently from the others, because a higher price also means a higher sale price. If it
+fails at the ceiling the other targets allow, RentWise scans lower prices and narrows in on the highest one that
+passes. A scan could miss a very narrow range, and the result says so when nothing passes.
+
+### 3.6 What moves cash flow most (sensitivity)
 
 There are no inputs here. RentWise changes **one assumption at a time** by a fixed, realistic amount, recomputes
 everything, and ranks the effect on **annual** cash flow after reserves. No probabilities are implied.
@@ -278,8 +318,8 @@ repairs and maintenance.
 
 | Control | What it does |
 |---|---|
-| **Export my data (JSON)** | Downloads everything (property, plan, scenarios, targets, months) as `rentwise-data.json`. |
-| **Clear my data** | Permanently deletes everything stored in this browser, after asking. |
+| **Export my data (JSON)** | Downloads everything (every property with its plan and months, scenarios, targets, branding) as `rentwise-data.json`. |
+| **Clear my data** | Permanently deletes every property and everything else stored in this browser, after asking. |
 
 - Data is saved automatically in **this browser only** (localStorage). There is no account, server or bank
   connection, and nothing is uploaded.
@@ -290,9 +330,52 @@ repairs and maintenance.
 - If saved data could not be loaded, changes are blocked until **Try loading again** succeeds. This protects
   existing properties and recorded months from being replaced by an empty starting state.
 - Clearing your browser's site data or switching browsers or devices starts fresh, so export to keep a copy.
-- Loading the example property asks before replacing your own property or any recorded months. An untouched example
-  with no months is reset without asking. Saving the full Inputs form makes the property yours: the "Synthetic
-  example" label goes away.
+- Loading the example property adds it next to your own properties. It asks first only if something would be
+  reset: your edits to the example, its recorded months, or your scenario and target settings. Saving the full
+  Inputs form makes the property yours: the "Synthetic example" label goes away.
+- Data saved by the first version of RentWise (one property) moves into your list automatically, with its plan,
+  months, scenarios and targets.
+
+### 5.1 Compare: your properties
+
+**Compare** in the navigation lists every property saved in this browser (up to 50), with its monthly cash flow
+after reserves.
+
+| Control | What it does |
+|---|---|
+| Checkbox | Picks the property for comparison (2 to 4). |
+| **Open** | Makes it the open property and shows its analysis. |
+| **Report** | Opens its investment report. |
+| **Rename** | Changes its name (up to 60 characters). |
+| **Duplicate** | Copies the inputs into a new property, without the plan or months, to try different numbers. |
+| **Delete** | Removes it and its months, after asking. |
+| **New property** | Opens a blank Inputs form; saving adds a new property. |
+| **Import (JSON)** | Adds the properties from an exported file (either version). Your scenarios and targets stay as they are. |
+
+**Side by side** shows 14 results for the picked properties with the same engine, scenarios and targets. The best
+value in each row is marked, with "higher is better" or "lower is better" under each label. **Different
+assumptions** lists only the assumptions that differ (for example vacancy or growth), because comparing properties
+built on different guesses can mislead. The chart shows cumulative cash flow over each hold. On a phone, pick two
+properties and read the results one metric at a time.
+
+### 5.2 Report and share link
+
+The **Report** is a read-only summary of one property: the short version, key numbers, where the rent goes, every
+assumption with its source label, scenarios, sensitivity, the offer ceiling with its binding target, the projection,
+and a disclaimer that is always shown.
+
+| Control | What it does |
+|---|---|
+| **Download PDF** | Opens your browser's print dialog; choose "Save as PDF". The printout is always light and leaves out the app's navigation. |
+| **Branding** | Your name, company, contact line, accent color and logo, saved in this browser only. The accent must be dark enough to read on white (4.5:1 contrast); a lighter one is refused with the reason. The logo must be PNG or JPG, up to 200 KB. |
+| **Share link** | Warns first that anyone with the link sees these numbers, then makes a link to copy. |
+
+A share link carries the **inputs only** (plus scenarios, targets and branding), never results, inside the part of
+the address after `#`, which isn't sent to any server. The recipient sees the same report, recalculated in their
+browser, and can **Save to my RentWise** to add the property to their own list (their scenarios and targets stay
+theirs). Recorded months go into the link only if you tick **Also include the locked plan and recorded months**. A
+logo that would make the link too long is left out, and the panel says so. A cut-off or changed link shows an
+error page instead of numbers. Links can't be revoked, so share them only with people who should see the numbers.
 
 ---
 

@@ -103,3 +103,24 @@ test("a share link opens read-only in a fresh browser, saves on request, and a b
   await expect(other.getByRole("heading", { name: "This link is broken or incomplete" })).toBeVisible();
   await fresh.close();
 });
+
+test("the offer ceiling names its binding target, including IRR, and shows the infeasible state", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the example property" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+  await expect(page.getByRole("button", { name: "Explain IRR over 10 years" })).toBeVisible();
+  await expect(page.locator("#t-pirr").locator("..")).toContainText("9.29%");
+
+  await page.getByRole("checkbox", { name: "Use Min. cash-on-cash" }).check();
+  await expect(page.getByText("Cash-on-cash ≥ 8% is the binding limit; cash flow would allow $263,099.")).toBeVisible();
+  await expect(page.getByRole("row", { name: /^Cash-on-cash ≥ 8% \(binding\)/ })).toContainText("$176,884");
+
+  await page.getByRole("checkbox", { name: "Use Min. cash-on-cash" }).uncheck();
+  await page.getByRole("checkbox", { name: "Use Min. IRR over the hold" }).check();
+  await page.getByLabel("Min. IRR over the hold", { exact: true }).fill("30");
+  await expect(page.getByText(/^IRR ≥ 30% is the binding limit/)).toBeVisible();
+
+  // Infeasible: no price can reach $5,000 a month on this rent.
+  await page.getByLabel("Min. cash flow after reserves", { exact: true }).fill("5000");
+  await expect(page.getByText(/Even at \$1, the minimum cash flow target fails/)).toBeVisible();
+});

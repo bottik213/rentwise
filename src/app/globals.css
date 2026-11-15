@@ -913,6 +913,7 @@ details.x[open] .xb {
   overflow: visible;
   pointer-events: none;
   z-index: 1;
+  animation: xin 600ms var(--ease-out) both; /* same entry length as the bars */
 }
 .chart .ends {
   position: relative;
@@ -946,6 +947,12 @@ details.x[open] .xb {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+table.ct {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  margin-top: 16px;
 }
 /* Forecast style: projected values are outlined with the same dashed ink as the plan line. */
 .chart .cb.fc {

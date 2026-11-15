@@ -2,6 +2,7 @@ import type {
   ConstraintKey, Cents, OfferCeilingResult, OfferConstraints, PropertyInputs, ScenarioAdjustments, ScenarioName, Underwriting,
 } from "./types";
 import type { IrrResult } from "./irr";
+import { CONSTRAINT_KEYS } from "./types";
 import { growthDeltas, projection } from "./projection";
 import { DEFAULT_SCENARIOS, applyScenario } from "./scenarios";
 import { underwrite } from "./underwriting";
@@ -117,6 +118,6 @@ export function ceilingByConstraint(
   c: OfferConstraints,
   conservative: ScenarioAdjustments = DEFAULT_SCENARIOS.conservative,
 ): { key: ConstraintKey; result: OfferCeilingResult }[] {
-  const keys = (["minMonthlyCashFlow", "minCashOnCash", "maxUpfrontCash", "minCapRate", "minDscr", "minIrr"] as const).filter((k) => c[k] !== undefined);
+  const keys = CONSTRAINT_KEYS.filter((k) => c[k] !== undefined);
   return keys.map((key) => ({ key, result: offerCeiling(inputs, { [key]: c[key], mustPassConservative: c.mustPassConservative }, conservative) }));
 }

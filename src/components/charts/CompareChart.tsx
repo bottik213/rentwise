@@ -2,6 +2,7 @@
 import { useTapTip } from "@/components/useTapTip";
 import { usd } from "@/lib/format";
 import { niceTicks } from "./PlanVsActual";
+import { axis } from "./YearChart";
 
 export interface Series {
   name: string;
@@ -9,7 +10,6 @@ export interface Series {
   values: number[];
 }
 
-const axis = (t: number) => (Math.abs(t) >= 1_000_000 ? `${t < 0 ? "−" : ""}$${Math.abs(t) / 100_000}k` : usd(t));
 
 function YearHit({ year, series, first, last }: { year: number; series: Series[]; first: boolean; last: boolean }) {
   const tip = useTapTip<HTMLDivElement>();

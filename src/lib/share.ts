@@ -27,9 +27,29 @@ const toB64Url = (bytes: Uint8Array) => {
 };
 const fromB64Url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 
+/** Links come from anyone: refuse oversized ones before unpacking, and stop unpacking past 1 MB (a "zip bomb"). */
+const MAX_FRAGMENT = 400_000;
+export const MAX_UNPACKED = 1_000_000;
+
 async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
-  const out = new Blob([bytes as BlobPart]).stream().pipeThrough(stream);
-  return new Uint8Array(await new Response(out).arrayBuffer());
+  const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(stream).getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (let r = await reader.read(); !r.done; r = await reader.read()) {
+    size += r.value.length;
+    if (size > MAX_UNPACKED) {
+      await reader.cancel();
+      throw new RangeError("share link too large");
+    }
+    chunks.push(r.value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
 }
 
 export async function encodeShare(payload: SharePayload): Promise<string> {
@@ -43,6 +63,7 @@ export type DecodeResult = { ok: true; payload: SharePayload } | { ok: false; re
 export async function decodeShare(fragment: string): Promise<DecodeResult> {
   const f = fragment.replace(/^#/, "");
   if (!f) return { ok: false, reason: "empty" };
+  if (f.length > MAX_FRAGMENT) return { ok: false, reason: "broken" };
   const [version, data] = [f.slice(0, f.indexOf(".")), f.slice(f.indexOf(".") + 1)];
   if (/^v\d+$/.test(version) && version !== VERSION) return { ok: false, reason: "newer" };
   if (version !== VERSION || !data) return { ok: false, reason: "broken" };
@@ -59,7 +80,5 @@ export async function decodeShare(fragment: string): Promise<DecodeResult> {
 export async function buildShareLink(origin: string, payload: SharePayload): Promise<{ url: string; logoDropped: boolean }> {
   const url = `${origin}/r#${await encodeShare(payload)}`;
   if (url.length <= SAFE_LINK_LENGTH || !payload.branding?.logo) return { url, logoDropped: false };
-  const { logo: _, ...rest } = payload.branding;
-  void _;
-  return { url: `${origin}/r#${await encodeShare({ ...payload, branding: rest })}`, logoDropped: true };
+  return { url: `${origin}/r#${await encodeShare({ ...payload, branding: { ...payload.branding, logo: undefined } })}`, logoDropped: true };
 }

@@ -22,7 +22,7 @@ function Column({ year, v, y, zero, first, last }: { year: number; v: number; y:
 }
 
 /** Compact axis labels ("$150k") so six-figure ticks fit the narrow y-axis on a phone. */
-const axis = (t: number) => (Math.abs(t) >= 1_000_000 ? `${t < 0 ? "−" : ""}$${Math.abs(t) / 100_000}k` : usd(t));
+export const axis = (t: number) => (Math.abs(t) >= 1_000_000 ? `${t < 0 ? "−" : ""}$${Math.abs(t) / 100_000}k` : usd(t));
 
 /** One projected value per year, drawn in the forecast style (dashed outline). */
 export function YearChart({ title, values, legend }: { title: string; values: number[]; legend: string }) {

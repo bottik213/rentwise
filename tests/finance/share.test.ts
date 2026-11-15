@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_PROPERTY } from "../../src/data/demo-property";
 import { DEFAULT_SCENARIOS } from "../../src/lib/finance/scenarios";
-import { SAFE_LINK_LENGTH, buildShareLink, decodeShare, encodeShare, type SharePayload } from "../../src/lib/share";
+import { MAX_UNPACKED, SAFE_LINK_LENGTH, buildShareLink, decodeShare, encodeShare, type SharePayload } from "../../src/lib/share";
 
 const base: SharePayload = { inputs: DEMO_PROPERTY, isExample: true, scenarios: DEFAULT_SCENARIOS, constraints: { minMonthlyCashFlow: 0, minIrr: 0.1 } };
 const fixture = (await import("../fixtures/v1-state.json")).default;
@@ -48,5 +48,16 @@ describe("share link", () => {
     const z = new Uint8Array(await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
     const b64 = btoa(String.fromCharCode(...z)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     expect(await decodeShare(`v1.${b64}`)).toEqual({ ok: false, reason: "broken" });
+  });
+
+  it("refuses a link that unpacks past 1 MB (a zip bomb) or is absurdly long, without hanging", async () => {
+    const bomb = new TextEncoder().encode(`{"x":"${"0".repeat(MAX_UNPACKED * 3)}"}`);
+    const z = new Uint8Array(await new Response(new Blob([bomb]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
+    let b = "";
+    for (let i = 0; i < z.length; i += 0x8000) b += String.fromCharCode(...z.subarray(i, i + 0x8000));
+    const link = `v1.${btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
+    expect(link.length).toBeLessThan(20_000); // tiny link, huge payload
+    expect(await decodeShare(link)).toEqual({ ok: false, reason: "broken" });
+    expect(await decodeShare(`v1.${"A".repeat(400_001)}`)).toEqual({ ok: false, reason: "broken" });
   });
 });

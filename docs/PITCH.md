@@ -27,37 +27,42 @@ Nov 2026]:
 
 None of these four leads with comparing the plan you bought on against what actually happened.
 
-**4. Product: one workflow.** Analyze → Stress test → Offer ceiling → Track actuals → Explain variance. Analysis
-screenshot (16:9).
+**4. Product: one workflow.** Analyze and stress test → Project the hold (IRR) → Offer ceiling → Compare and
+report → Track actuals → Explain variance. None of the steps is new on its own; they share one engine and one set
+of assumptions.
 
 **5. Demo moment.**
-1. The example property: $65.36/mo after reserves.
-2. Raise vacancy, and the numbers animate down.
-3. Back to 5%. Set a minimum of $200/mo: offer ceiling $223,017, $26,983 below asking.
-4. Mark as owned, then record the first month with a surprise $1,800 repair.
-5. Plan $187.86, actual −$1,612.14: −$1,800.00, all of it repairs, to the cent.
+1. The example property: $65.36/mo after reserves, 10-year IRR 9.29% (before tax).
+2. Vacancy to 10%: −$47.34/mo, IRR 7.96%. Back to 5%.
+3. Min. cash-on-cash 8%: offer ceiling $176,884; "Cash-on-cash ≥ 8% is the binding limit; cash flow would allow
+   $263,099."
+4. A branded report: a PDF, or a link that carries the inputs only.
+5. Mark as owned, record a surprise $1,800 repair: −$1,800.00, all of it repairs, to the cent.
 
 All values [computed]. Plan-vs-actual chart on the slide.
 
 **6. Why you can trust the numbers.** [sourced: our repo]
-- The integer-cent engine and the spec's reference case are asserted to the cent: 54 unit tests in total.
-- 80 end-to-end runs (16 tests × 5 browser setups) pass on the production URL, with hand-computed expected values.
-- Variance contributors sum exactly to the total.
-- The offer ceiling discloses what it holds constant.
-- The explanation is rule-based, not AI.
+- Phase 1 reference: the spec's property asserted to the cent (cash flow after reserves $65.36/mo).
+- 10-year reference: IRR 9.2883%, equity multiple 2.3038×, net sale proceeds $164,922.13, matching a calculation
+  done independently from the written definitions.
+- 120 unit tests; 105 end-to-end runs (21 tests × 5 browser setups) pass on the production URL.
+- The offer ceiling's Phase 1 outputs were captured before it was extended and are locked in a test.
+- Variance contributors sum exactly to the total. The explanation is rule-based, not AI.
 
 **7. Why users come back.** Event-driven, not daily:
-- weekly while shopping: one analysis per candidate deal, plus an offer ceiling before each offer;
+- weekly while shopping: one analysis per candidate deal, an offer ceiling before each offer, and the compare
+  page next to the deals already saved;
 - monthly while owning: a 5-minute "record this month", after which the variance explains itself.
 
 One owned property means 12 check-ins a year.
 
 **8. Monetization.**
-- **What users pay for** [estimate; pricing is a hypothesis, not built yet]:
-  - **Free:** one property, the full analysis.
-  - **Investor, $12/mo:** the shopping loop. Unlimited analyses, saved deals, offer ceilings, PDF deal reports.
+- **What users pay for** [estimate; every price is a hypothesis and payments aren't built]:
+  - **Free:** the full analysis.
+  - **One-time report, $9–19:** a branded report for one deal, as a PDF and a link, for a lender or partner. The
+    report is built and live; the price is what we'd test.
+  - **Investor, $12/mo:** the shopping loop. Unlimited saved deals, comparisons, offer ceilings and reports.
   - **Landlord, $19/mo:** the owning loop. Locked plans, monthly actuals, variance history across properties.
-  - **One-time report:** $9–19.
 - **Unit economics** [estimate]: $15 blended ARPU, 85% gross margin and 5% monthly churn give an LTV of about
   $255, so the maximum CAC at 3:1 is about $85.
 - **$100M ARR** [estimate]: at a $15 blended ARPU that needs about 555,600 paying users, or 438,600 if everyone
@@ -72,13 +77,14 @@ One owned property means 12 check-ins a year.
 | Baselane | Landlord banking and bookkeeping | $0; $20/mo annual |
 | TurboTenant | Listings, screening, leases, rent collection | Free; from $12.42/mo ($149/yr) |
 
-We don't claim any single feature is new. Our claim is the connected loop: the plan you bought on becomes the
+We don't claim any single feature is new: DealCheck already does projections, offer calculations, comparisons and
+branded reports. Our claim is the connected loop: the plan you bought on becomes the
 benchmark your actual months are explained against. The plans-plus-actuals history is the moat to build.
 
 **10. Team, roadmap, close.**
 - **Team:** three developers [names to add].
-- **Roadmap:** portfolio view, lender-ready PDF report, an optional AI explainer that reads computed numbers only,
-  optional cloud sync.
+- **Roadmap:** a portfolio view, an optional AI explainer that reads computed numbers only, optional cloud sync
+  (which would also make share links revocable), tax and depreciation estimates.
 - **Close:** the tagline and the URL.
 
 ## 60-second demo script
@@ -86,29 +92,35 @@ benchmark your actual months are explained against. The plans-plus-actuals histo
 **Step 0, before going on stage:** open a private window, or click "Clear my data", so no confirmation dialogs
 appear. Rehearse on the production URL and time it.
 
-1. **(0–10s)** Click "Try the example property". "A synthetic duplex: $250,000, renting for $2,450. RentWise says
-   $65 a month after reserves. Thin, but positive."
-2. **(10–20s)** Type 10 into Vacancy. "Vacancy is a guess. At 10%, every number recomputes and it loses $47 a
-   month. One assumption is the deal." Type 5 again.
-3. **(20–35s)** Scroll to Offer ceiling and type 200. "I want at least $200 a month. The most I should pay is
-   $223,017, which is $26,983 under asking. It shows what limits it and what it holds constant."
-4. **(35–50s)** Click "Mark as owned". In "Repairs & maintenance" type 1996 and click "Add month". "I bought
-   it. The first month brings a surprise $1,800 repair."
-5. **(50–60s)** Point at the top card. "Cash flow is $1,800 below plan, and it says exactly why: repairs. Planned
-   $187.86, actual −$1,612.14, and the table adds up to the cent. Know the numbers before you buy. Know the truth
-   after."
+1. **(0–8s)** Click "Try the example property". "A synthetic duplex: $250,000, renting for $2,450. $65 a month
+   after reserves, and a 10-year IRR of 9.29 percent, before tax."
+2. **(8–18s)** Type 10 into Vacancy. "Vacancy is a guess. At 10 percent every number recomputes: it loses $47 a
+   month and the IRR drops to 7.96." Type 5 again.
+3. **(18–30s)** Scroll to Offer ceiling and switch on "Min. cash-on-cash" (8%). "I want 8 percent cash-on-cash. The
+   most I should pay is $176,884, and it says why: cash-on-cash is the binding limit; cash flow alone would allow
+   $263,099."
+4. **(30–40s)** Scroll up and click "Report". "One click gives a branded report for a lender or partner: a PDF, or
+   a link that carries the inputs only and recalculates on their side." Go back to the analysis.
+5. **(40–55s)** Click "Mark as owned". In "Repairs & maintenance" type 1996 and click "Add month". "I bought it.
+   The first month brings a surprise $1,800 repair."
+6. **(55–60s)** Point at the top card. "Cash flow is $1,800 below plan, and it says exactly why: repairs, to the
+   cent. Know the numbers before you buy. Know the truth after."
 
 ## Q&A (two sentences each)
 
 - **How is this different from DealCheck or Stessa?** DealCheck stops at the offer, and Stessa starts at the
   books. We connect the two, so the plan you bought on becomes the benchmark your actual months are explained
   against.
+- **DealCheck already does projections and reports. Why you?** Because ours aren't separate tools: the projection
+  feeds the offer ceiling, the ceiling is the plan you lock when you buy, and every actual month is explained
+  against it, all with the same engine and the same assumptions in one flow. DealCheck's numbers stop at the
+  purchase; ours keep working after it.
 - **Why pay when free tools exist?** You pay to keep the history: every locked plan, its monthly actuals and the
   variance across properties. At $12–19 a month we're priced within the range of existing tools; this is a
   hypothesis we'd test first.
 - **Why come back?** Weekly while shopping for deals, monthly while owning. We don't claim daily use.
 - **How do you know the numbers are right?** All math is in integer cents, and the spec's reference case is
-  tested to the cent among 54 unit tests. The end-to-end tests check hand-computed values on the live site in 5 browser setups, and variance contributors are asserted to sum exactly.
+  tested to the cent, and so is a 10-year reference projection (IRR 9.2883%), among 120 unit tests. The end-to-end tests check hand-computed values on the live site in 5 browser setups, and variance contributors are asserted to sum exactly.
 - **How is this $100M?** At a $15 blended price, $100M ARR means about 555,600 paying users. That's an aspiration,
   not a forecast, and it grows through mix shift to the Landlord tier and paid reports.
 - **What's AI-powered?** Nothing in the numbers, on purpose: the explanation is deterministic. An optional AI
