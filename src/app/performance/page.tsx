@@ -1,13 +1,13 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import duplex from "@/assets/photos/duplex-hinesburg.jpg";
 import porch from "@/assets/photos/porch-toronto.jpg";
 import { PageFooter } from "@/components/DataControls";
 import { Contributors, PlanVsActual } from "@/components/charts/PlanVsActual";
 import { NumberField } from "@/components/forms/NumberField";
-import { Arrow, Badge, Logo } from "@/components/Icons";
+import { Arrow, Badge, Chevron, Logo } from "@/components/Icons";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
 import { TryExampleButton } from "@/components/TryExampleButton";
 import { CATEGORY_LABEL, explainVariance } from "@/lib/explain";
@@ -15,11 +15,12 @@ import { underwrite } from "@/lib/finance/underwriting";
 import { monthlyForecast, variance } from "@/lib/finance/variance";
 import { ACTUAL_CATEGORIES, type ActualMonth, type Cents, type Underwriting, type VarianceContributor } from "@/lib/finance/types";
 import { monthLabel, usd } from "@/lib/format";
+import { ExpensesTab } from "@/components/ledger/ExpensesTab";
 import { RentTab } from "@/components/ledger/RentTab";
 import { localToday } from "@/lib/ledger/dates";
 import { missingBills } from "@/lib/ledger/bills";
 import { combinedActuals } from "@/lib/ledger/to-actuals";
-import type { Ledger } from "@/lib/ledger/types";
+import type { Ledger, MonthMode } from "@/lib/ledger/types";
 import { setAppState, useAppState } from "@/lib/storage";
 import { ActualMonthSchema } from "@/lib/validation";
 import "./performance.css";
@@ -55,7 +56,9 @@ function monthSentence(u: Underwriting, m: ActualMonth) {
   return `${cap(phrase(ms[0]))}.${rest}`;
 }
 
-const TABS = [["overview", "Overview"], ["rent", "Rent"]] as const;
+const TABS = [["overview", "Overview"], ["rent", "Rent"], ["expenses", "Expenses & maintenance"]] as const;
+/** Set one month's mode explicitly, replacing any earlier choice for it. */
+const withMode = (modes: MonthMode[], month: string, mode: MonthMode["mode"]) => [...modes.filter((m) => m.month !== month), { month, mode }];
 type Tab = (typeof TABS)[number][0];
 
 const judge = (t: number) => (t < 0 ? { st: "bad" as const, label: "Below plan" } : { st: "good" as const, label: t > 0 ? "Above plan" : "On plan" });
@@ -65,6 +68,7 @@ export default function PerformancePage() {
   const [draft, setDraft] = useState<ActualMonth | null>(null);
   const [formRevision, setFormRevision] = useState(0);
   const [tab, setTab] = useState<Tab>("overview");
+  const [open, setOpen] = useState<string | null>(null); // the contributor whose entries are expanded
   if (!s) return <PageSkeleton />;
 
   if (!s.plan) {
@@ -125,14 +129,28 @@ export default function PerformancePage() {
 
   const save = () => {
     if (!valid) return;
-    // Upsert by month: a duplicate month would be counted twice.
-    setAppState((x) => ({ ...x, actuals: [...x.actuals.filter((a) => a.month !== form.month), form].sort((a, b) => a.month.localeCompare(b.month)) }));
+    // Upsert by month: a duplicate month would be counted twice. Saving totals makes the month manual.
+    setAppState((x) => ({
+      ...x,
+      actuals: [...x.actuals.filter((a) => a.month !== form.month), form].sort((a, b) => a.month.localeCompare(b.month)),
+      ledger: { ...x.ledger, monthModes: withMode(x.ledger.monthModes, form.month, "manual") },
+    }));
     setDraft(null);
   };
   const remove = (month: string) => {
     if (!confirm(`Delete ${monthLabel(month)}?`)) return;
-    setAppState((x) => ({ ...x, actuals: x.actuals.filter((a) => a.month !== month) }));
+    setAppState((x) => ({ ...x, actuals: x.actuals.filter((a) => a.month !== month), ledger: { ...x.ledger, monthModes: x.ledger.monthModes.filter((m) => m.month !== month) } }));
   };
+  // Switching never deletes anything: manual totals stay stored, and ledger entries stay recorded.
+  const toManual = (m: ActualMonth) =>
+    setAppState((x) => ({
+      ...x,
+      actuals: [...x.actuals.filter((a) => a.month !== m.month), m].sort((a, b) => a.month.localeCompare(b.month)), // prefilled from the ledger, in the same save
+      ledger: { ...x.ledger, monthModes: withMode(x.ledger.monthModes, m.month, "manual") },
+    }));
+  const toLedger = (month: string) => setLedger((l) => ({ ...l, monthModes: withMode(l.monthModes, month, "ledger") }));
+  const hasEntries = new Set([...s.ledger.payments, ...s.ledger.expenses, ...s.ledger.depositEvents].filter((e) => e.date <= today).map((e) => e.date.slice(0, 7)));
+  const latestSources = latest ? combined.sources[latest.month] : undefined;
 
   return (
     <div className="pg-actuals">
@@ -169,6 +187,12 @@ export default function PerformancePage() {
         {tab === "rent" && (
           <div role="tabpanel" id="panel-rent" aria-labelledby="tab-rent">
             <RentTab ledger={s.ledger} setLedger={setLedger} today={today} plannedRent={plan.inputs.monthlyRent} />
+          </div>
+        )}
+
+        {tab === "expenses" && (
+          <div role="tabpanel" id="panel-expenses" aria-labelledby="tab-expenses">
+            <ExpensesTab ledger={s.ledger} setLedger={setLedger} today={today} />
           </div>
         )}
 
@@ -289,14 +313,39 @@ export default function PerformancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {latestMovers.map((c) => (
-                      <tr key={c.category}>
-                        <th scope="row">{CATEGORY_LABEL[c.category]}</th>
-                        <td className="mut">{usd(c.forecast, { exact: true })}</td>
-                        <td>{usd(c.actual, { exact: true })}</td>
-                        <td className={c.impact < 0 ? "neg" : "pos"}>{usd(c.impact, { exact: true, signed: true })}</td>
-                      </tr>
-                    ))}
+                    {latestMovers.map((c) => {
+                      const refs = latestSources?.[c.category] ?? [];
+                      const expanded = open === c.category;
+                      return (
+                        <Fragment key={c.category}>
+                          <tr>
+                            <th scope="row">
+                              {refs.length ? (
+                                <button type="button" className="xp" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : c.category)}>
+                                  <Chevron />
+                                  {CATEGORY_LABEL[c.category]}
+                                </button>
+                              ) : (
+                                CATEGORY_LABEL[c.category]
+                              )}
+                            </th>
+                            <td className="mut">{usd(c.forecast, { exact: true })}</td>
+                            <td>{usd(c.actual, { exact: true })}</td>
+                            <td className={c.impact < 0 ? "neg" : "pos"}>{usd(c.impact, { exact: true, signed: true })}</td>
+                          </tr>
+                          {expanded &&
+                            refs.map((r) => (
+                              <tr key={`${r.kind}-${r.id}`} className="src">
+                                <th scope="row" colSpan={2}>
+                                  {r.date} · {r.label}
+                                </th>
+                                <td>{usd(r.amount, { exact: true })}</td>
+                                <td />
+                              </tr>
+                            ))}
+                        </Fragment>
+                      );
+                    })}
                     {quiet.length > 0 && (
                       <tr>
                         <th scope="row">Everything else ({quiet.length} lines, on plan)</th>
@@ -358,10 +407,22 @@ export default function PerformancePage() {
                       const v = variance(u, [a]).actualCashFlowBeforeCapex;
                       return (
                         <li key={a.month} className="rmr">
-                          <span>{monthLabel(a.month)}</span>
+                          <span>
+                            {monthLabel(a.month)}
+                            {combined.mode[a.month] === "ledger" && (
+                              <>
+                                {" "}
+                                <span className="tag" title="Built from your rent and expense entries">Ledger</span>
+                              </>
+                            )}
+                          </span>
                           <span className={v < 0 ? "neg" : ""}>{usd(v, { exact: true })}</span>
                           {combined.mode[a.month] === "ledger" ? (
-                            <span className="tag" title="Built from your rent and expense entries">Ledger</span>
+                            <span>
+                              <button type="button" className="lnk" aria-label={`Enter totals manually for ${monthLabel(a.month)}`} onClick={() => toManual(a)}>
+                                Enter totals
+                              </button>
+                            </span>
                           ) : (
                             <span>
                               <button type="button" className="lnk" onClick={() => setDraft(a)}>
@@ -370,6 +431,11 @@ export default function PerformancePage() {
                               <button type="button" className="lnk danger" onClick={() => remove(a.month)}>
                                 Delete
                               </button>
+                              {hasEntries.has(a.month) && (
+                                <button type="button" className="lnk" onClick={() => toLedger(a.month)}>
+                                  Use ledger
+                                </button>
+                              )}
                             </span>
                           )}
                         </li>
