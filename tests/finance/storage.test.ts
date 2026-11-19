@@ -11,7 +11,7 @@ vi.stubGlobal("localStorage", storage);
 
 // Fresh module per test: the store caches state in a module variable.
 const load = () => import("../../src/lib/storage");
-const KEY = "rentwise:v3";
+const KEY = "rentwise:kz:v1";
 
 describe("storage guard", () => {
   beforeEach(() => {

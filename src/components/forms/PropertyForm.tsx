@@ -4,9 +4,9 @@ import { Arrow } from "@/components/Icons";
 import { AnimatedNumber } from "@/components/results/AnimatedNumber";
 import { underwrite } from "@/lib/finance/underwriting";
 import type { AssumptionSource, PropertyInputs } from "@/lib/finance/types";
-import { pct, usd } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { PropertyInputsSchema } from "@/lib/validation";
-import { FIELDS, GROUPS, closingDef, type NumericKey } from "./fields";
+import { FIELDS, GROUPS, closingDef, fieldDef, type FieldKey, type NumericKey } from "./fields";
 import { NumberField } from "./NumberField";
 
 type Draft = Partial<PropertyInputs>;
@@ -17,17 +17,17 @@ interface Props {
   onSubmit: (p: PropertyInputs) => void;
 }
 
-const exact = (v: number) => usd(Math.round(v), { exact: true });
-const rate = (v: number) => pct(v);
-
 export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
+  const { t, money: usd, pct } = useI18n();
+  const exact = (v: number) => usd(Math.round(v), { exact: true });
+  const rate = (v: number) => pct(v);
   const [d, setD] = useState<Draft>(initial);
   const [tried, setTried] = useState(false);
   const set = (patch: Draft) => setD((x) => ({ ...x, ...patch }));
   const setSource = (k: NumericKey, s: AssumptionSource) => setD((x) => ({ ...x, sources: { ...x.sources, [k]: s } }));
 
   const parsed = PropertyInputsSchema.safeParse(d);
-  const missing = Object.values(FIELDS).filter((f) => d[f.key] === undefined && !(d.allCash && isFinancing(f.key)));
+  const missing = (Object.keys(FIELDS) as FieldKey[]).filter((k) => d[k] === undefined && !(d.allCash && isFinancing(k))).map((k) => t.fields[k].label);
   const live = parsed.success ? underwrite(parsed.data) : null;
 
   const closingIsPct = d.closingCostMode !== "amount";
@@ -41,10 +41,10 @@ export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
     });
   };
 
-  const field = (k: keyof typeof FIELDS) => (
+  const field = (k: FieldKey) => (
     <NumberField
       key={k}
-      def={FIELDS[k]}
+      def={fieldDef(t, k)}
       value={d[k]}
       disabled={d.allCash && isFinancing(k)}
       onCommit={(v) => set({ [k]: v })}
@@ -69,22 +69,22 @@ export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
       >
         <div className="nick">
           <label htmlFor="nickname">
-            Nickname <span>(optional)</span>
+            {t.form.nickname} <span>{t.common.optional}</span>
           </label>
-          <input id="nickname" maxLength={60} value={d.nickname ?? ""} onChange={(e) => set({ nickname: e.target.value || undefined })} placeholder="e.g. Maple St duplex" />
+          <input id="nickname" maxLength={60} value={d.nickname ?? ""} onChange={(e) => set({ nickname: e.target.value || undefined })} placeholder={t.form.nicknameHint} />
         </div>
 
         {GROUPS.map((g) => (
-          <fieldset key={g.title} className="sec">
+          <fieldset key={g.id} className="sec">
             <legend className="disp">
-              {g.title}
-              <small>{g.sub}</small>
+              {t.groups[g.id].title}
+              <small>{t.groups[g.id].sub}</small>
             </legend>
             <div className="fg">
-              {g.title === "Loan" && (
+              {g.id === "loan" && (
                 <label className="chk">
                   <input type="checkbox" checked={!!d.allCash} onChange={(e) => set({ allCash: e.target.checked })} />
-                  All-cash purchase (no mortgage)
+                  {t.form.allCash}
                 </label>
               )}
               {g.keys.map((k) => (
@@ -93,12 +93,12 @@ export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
                   {k === "purchasePrice" && (
                     <NumberField
                       key={d.closingCostMode}
-                      def={closingDef(closingIsPct)}
+                      def={closingDef(t, closingIsPct)}
                       value={d.closingCostValue}
                       onCommit={(v) => set({ closingCostValue: v })}
                       extra={
-                        <span className="seg" role="group" aria-label="Closing cost unit">
-                          {([["%", true], ["$", false]] as const).map(([label, pctMode]) => (
+                        <span className="seg" role="group" aria-label={t.form.closingUnit}>
+                          {([["%", true], ["₸", false]] as const).map(([label, pctMode]) => (
                             <button key={label} type="button" aria-pressed={closingIsPct === pctMode} onClick={() => switchClosing(pctMode)}>
                               {label}
                             </button>
@@ -114,41 +114,39 @@ export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
         ))}
       </form>
 
-      <aside className="sum" aria-label="Live summary">
+      <aside className="sum" aria-label={t.form.liveSummary}>
         <div className="sumc num" aria-live="polite">
-          <p className="k">As you type</p>
+          <p className="k">{t.form.asYouType}</p>
           {live ? (
             <>
               <dl>
                 <div>
-                  <dt>Cash flow after reserves</dt>
+                  <dt>{t.form.cfAfter}</dt>
                   <dd>
                     <AnimatedNumber value={cf} format={exact} />
-                    <small>/mo</small>
+                    <small>{t.common.mo}</small>
                   </dd>
                 </div>
                 <div>
-                  <dt>Cash-on-cash return</dt>
-                  <dd>{live.cashOnCash === null ? "n/a" : <AnimatedNumber value={live.cashOnCash} format={rate} />}</dd>
+                  <dt>{t.form.coc}</dt>
+                  <dd>{live.cashOnCash === null ? t.common.na : <AnimatedNumber value={live.cashOnCash} format={rate} />}</dd>
                 </div>
               </dl>
               <div className="row">
-                <span>Cash invested</span>
+                <span>{t.form.cashInvested}</span>
                 <b>{usd(live.cashInvested)}</b>
               </div>
               <div className="row">
-                <span>Break-even rent</span>
-                <b>{live.breakEvenRent === null ? "Not reachable" : `${usd(live.breakEvenRent)}/mo`}</b>
+                <span>{t.form.breakEven}</span>
+                <b>{live.breakEvenRent === null ? t.common.notReachable : `${usd(live.breakEvenRent)}${t.common.mo}`}</b>
               </div>
               <p className="say">
-                {cf >= 0
-                  ? `At these numbers the property would bring in about ${usd(cf)} a month after every cost.`
-                  : `At these numbers the property would cost you about ${usd(-cf)} a month after every cost.`}
+                {cf >= 0 ? t.form.bringsIn(usd(cf)) : t.form.costs(usd(-cf))}
               </p>
             </>
           ) : (
             <p className="say" style={{ display: "block" }}>
-              Fill in {missing.length ? `${missing.length} more field${missing.length === 1 ? "" : "s"}` : "the highlighted fields"} to see live numbers.
+              {t.form.fillIn(missing.length)}
             </p>
           )}
         </div>
@@ -157,10 +155,10 @@ export function PropertyForm({ initial, submitLabel, onSubmit }: Props) {
         </button>
         {tried && !parsed.success && (
           <p role="alert" className="err">
-            {missing.length ? `Still needed: ${missing.map((f) => f.label.toLowerCase()).join(", ")}.` : "Fix the highlighted fields."}
+            {missing.length ? t.form.stillNeeded(missing.map((l) => l.toLocaleLowerCase()).join(", ")) : t.form.fixHighlighted}
           </p>
         )}
-        <p className="tip2">Nothing is sent anywhere. Your inputs are saved in this browser when you continue.</p>
+        <p className="tip2">{t.form.nothingSent}</p>
       </aside>
     </div>
   );

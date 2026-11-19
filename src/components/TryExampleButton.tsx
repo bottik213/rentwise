@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { DEMO_PROPERTY } from "@/data/demo-property";
+import { useI18n } from "@/i18n/client";
 import { DEFAULT_SCENARIOS } from "@/lib/finance/scenarios";
 import { EMPTY_LEDGER } from "@/lib/ledger/types";
 import type { ScenarioName } from "@/lib/finance/types";
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS = settings(EMPTY_STORED);
 /** Opens the synthetic example with default scenarios and targets. Your own properties are never touched. */
 export function TryExampleButton({ className }: { className: string }) {
   const router = useRouter();
+  const { t, path } = useI18n();
   return (
     <button
       type="button"
@@ -29,20 +31,20 @@ export function TryExampleButton({ className }: { className: string }) {
           const lost: string[] = [];
           const entries = ex ? ex.ledger.payments.length + ex.ledger.expenses.length + ex.ledger.leases.length + ex.ledger.maintenance.length : 0;
           if (ex && (JSON.stringify(ex.inputs) !== EXAMPLE_INPUTS || ex.plan || ex.actuals.length || entries))
-            lost.push(`your edits to the example${ex.actuals.length ? ` and its ${ex.actuals.length} recorded month(s)` : ""}${entries ? ` and its ${entries} ledger entr${entries === 1 ? "y" : "ies"}` : ""}`);
-          if (settings(s) !== DEFAULT_SETTINGS) lost.push("your scenario and target settings");
-          loaded = !lost.length || confirm(`Loading the example resets ${lost.join(" and ")}. Your other properties are kept. Continue?`);
+            lost.push(t.example.edits(ex.actuals.length, entries));
+          if (settings(s) !== DEFAULT_SETTINGS) lost.push(t.example.settings);
+          loaded = !lost.length || confirm(t.example.confirm(lost));
           if (!loaded) return s;
           const now = new Date().toISOString();
           const fresh: Deal = { id: ex?.id ?? newId(), createdAt: ex?.createdAt ?? now, updatedAt: now, inputs: DEMO_PROPERTY, isExample: true, plan: null, actuals: [], ledger: EMPTY_LEDGER };
           const deals = ex ? s.deals.map((d) => (d.id === ex.id ? fresh : d)) : [...s.deals, fresh];
           return { ...s, deals, activeId: fresh.id, scenarios: EMPTY_STORED.scenarios, constraints: EMPTY_STORED.constraints };
         });
-        if (loaded && ok) router.push("/results");
-        else if (loaded) alert("The example couldn't be added. You may have 50 saved properties, the most this browser keeps: delete one under Compare first.");
+        if (loaded && ok) router.push(path("/results"));
+        else if (loaded) alert(t.example.full);
       }}
     >
-      Try the example property
+      {t.example.button}
     </button>
   );
 }

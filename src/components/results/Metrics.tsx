@@ -1,18 +1,16 @@
 "use client";
 import { Chevron, InfoIcon, type Status } from "@/components/Icons";
 import { useTapTip } from "@/components/useTapTip";
+import { useI18n } from "@/i18n/client";
 import type { Cents, Underwriting } from "@/lib/finance/types";
-import { usd } from "@/lib/format";
-
-const VACANCY_TIP = "Rent you expect to lose while a unit sits empty between tenants. It is a planning number, not a bill.";
-const CAPEX_TIP = "Money set aside for big future repairs like a roof or HVAC. Planned, not spent.";
 
 /** An ⓘ inside a row; the bubble opens from the row's left edge. */
 export function RowTip({ label, text }: { label: string; text: string }) {
   const tip = useTapTip<HTMLSpanElement>();
+  const { t } = useI18n();
   return (
     <span ref={tip.ref} className={`jt tw ${tip.open ? "open" : ""}`} style={{ position: "static" }}>
-      <button type="button" className="ib" aria-label={`What is ${label}?`} aria-expanded={tip.open} onClick={tip.toggle}>
+      <button type="button" className="ib" aria-label={t.wf.whatIs(label)} aria-expanded={tip.open} onClick={tip.toggle}>
         <InfoIcon />
       </button>
       <span className="pop up" role="tooltip">
@@ -31,20 +29,22 @@ interface Step {
 
 /** Gross rent stepping down through every cost to monthly cash flow. Bars are positioned on one shared scale. */
 export function Waterfall({ u, cfStatus }: { u: Underwriting; cfStatus: Status }) {
+  const { t, money: usd } = useI18n();
+  const w = t.wf;
   const steps: Step[] = [
-    { label: "Gross rent", v: u.grossScheduledRent, kind: "total" },
-    { label: "Vacancy allowance", v: u.effectiveRent - u.grossScheduledRent, tip: VACANCY_TIP },
+    { label: w.gross, v: u.grossScheduledRent, kind: "total" },
+    { label: w.vacancy, v: u.effectiveRent - u.grossScheduledRent, tip: w.vacTip },
   ];
-  if (u.otherIncome) steps.push({ label: "Other income", v: u.otherIncome, kind: "add" });
-  steps.push({ label: "Property tax", v: -u.propertyTax }, { label: "Insurance", v: -u.insurance });
-  if (u.hoa) steps.push({ label: "HOA", v: -u.hoa });
-  if (u.utilities) steps.push({ label: "Utilities", v: -u.utilities });
-  if (u.otherFixed) steps.push({ label: "Other fixed costs", v: -u.otherFixed });
-  steps.push({ label: "Maintenance", v: -u.maintenance }, { label: "Management", v: -u.management });
-  steps.push({ label: "Net operating income", v: u.noi, kind: "sub" });
-  if (u.monthlyPI) steps.push({ label: "Mortgage P&I", v: -u.monthlyPI });
-  steps.push({ label: "CapEx reserve", v: -u.capexReserve, tip: CAPEX_TIP });
-  steps.push({ label: "Cash flow", v: u.reserveAdjustedCashFlow, kind: "end" });
+  if (u.otherIncome) steps.push({ label: w.otherIncome, v: u.otherIncome, kind: "add" });
+  steps.push({ label: w.propertyTax, v: -u.propertyTax }, { label: w.insurance, v: -u.insurance });
+  if (u.hoa) steps.push({ label: w.hoa, v: -u.hoa });
+  if (u.utilities) steps.push({ label: w.utilities, v: -u.utilities });
+  if (u.otherFixed) steps.push({ label: w.otherFixed, v: -u.otherFixed });
+  steps.push({ label: w.maintenance, v: -u.maintenance }, { label: w.management, v: -u.management });
+  steps.push({ label: w.noi, v: u.noi, kind: "sub" });
+  if (u.monthlyPI) steps.push({ label: w.mortgage, v: -u.monthlyPI });
+  steps.push({ label: w.capex, v: -u.capexReserve, tip: w.capexTip });
+  steps.push({ label: w.cashFlow, v: u.reserveAdjustedCashFlow, kind: "end" });
 
   // Walk the steps once to find the scale, then again to place each bar.
   let run = 0;
@@ -65,16 +65,17 @@ export function Waterfall({ u, cfStatus }: { u: Underwriting; cfStatus: Status }
   const hi = Math.max(1, ...spans.map(([, b]) => b));
   const X = (v: number) => ((v - lo) / (hi - lo)) * 100;
 
-  const per = (v: number) => Math.round((v / u.grossScheduledRent) * 100);
+  // Shares of every 100 units of rent, shown in the money format ("100 ₸").
+  const per = (v: number) => usd(Math.round((v / u.grossScheduledRent) * 100) * 100);
   const cf = u.reserveAdjustedCashFlow;
   const caption =
     u.grossScheduledRent > 0
-      ? `Out of every $100 of rent, about $${per(u.grossScheduledRent - u.effectiveRent)} is lost to empty months, $${per(u.operatingExpenses)} goes to running costs, $${per(u.monthlyPI)} to the mortgage and $${per(u.capexReserve)} to future repairs, leaving about ${cf < 0 ? "−" : ""}$${Math.abs(per(cf))} for you.`
+      ? w.caption(usd(10_000), per(u.grossScheduledRent - u.effectiveRent), per(u.operatingExpenses), per(u.monthlyPI), per(u.capexReserve), per(cf))
       : "";
 
   return (
     <>
-      <div className="wf num" role="group" aria-label={`Waterfall from ${usd(u.grossScheduledRent, { exact: true })} gross rent down to ${usd(cf, { exact: true })} monthly cash flow.`}>
+      <div className="wf num" role="group" aria-label={w.aria(usd(u.grossScheduledRent, { exact: true }), usd(cf, { exact: true }))}>
         {steps.map((s, j) => {
           const [a, b] = spans[j];
           const cls = s.kind === "end" ? cfStatus : s.kind === "add" ? "sub" : s.kind ?? "ded";
@@ -100,7 +101,7 @@ export function Waterfall({ u, cfStatus }: { u: Underwriting; cfStatus: Status }
       <details className="x">
         <summary>
           <Chevron />
-          Show full statement
+          {w.showFull}
         </summary>
         <div className="xb">
           <Breakdown u={u} />
@@ -114,33 +115,35 @@ type Row = [label: string, monthly: Cents, kind?: "s"];
 
 /** Line-by-line monthly statement. Each total is the integer sum of the rows above it. */
 export function Breakdown({ u }: { u: Underwriting }) {
+  const { t, money: usd } = useI18n();
+  const w = t.wf;
   const rows: Row[] = [
-    ["Gross scheduled rent", u.grossScheduledRent],
-    ["Vacancy allowance", u.effectiveRent - u.grossScheduledRent],
-    ["Effective rent", u.effectiveRent, "s"],
-    ["Other income", u.otherIncome],
-    ["Property tax", -u.propertyTax],
-    ["Insurance", -u.insurance],
-    ["HOA", -u.hoa],
-    ["Utilities", -u.utilities],
-    ["Other fixed costs", -u.otherFixed],
-    ["Maintenance", -u.maintenance],
-    ["Management", -u.management],
-    ["Operating expenses", -u.operatingExpenses, "s"],
-    ["Net operating income", u.noi, "s"],
-    ["Mortgage P&I", -u.monthlyPI],
-    ["Cash flow before CapEx", u.cashFlowBeforeCapex, "s"],
-    ["CapEx reserve (planned, not spent)", -u.capexReserve],
-    ["Cash flow after reserves", u.reserveAdjustedCashFlow, "s"],
+    [w.grossScheduled, u.grossScheduledRent],
+    [w.vacancy, u.effectiveRent - u.grossScheduledRent],
+    [w.effective, u.effectiveRent, "s"],
+    [w.otherIncome, u.otherIncome],
+    [w.propertyTax, -u.propertyTax],
+    [w.insurance, -u.insurance],
+    [w.hoa, -u.hoa],
+    [w.utilities, -u.utilities],
+    [w.otherFixed, -u.otherFixed],
+    [w.maintenance, -u.maintenance],
+    [w.management, -u.management],
+    [w.opex, -u.operatingExpenses, "s"],
+    [w.noi, u.noi, "s"],
+    [w.mortgage, -u.monthlyPI],
+    [w.cfBefore, u.cashFlowBeforeCapex, "s"],
+    [w.capexPlanned, -u.capexReserve],
+    [w.cfAfter, u.reserveAdjustedCashFlow, "s"],
   ];
   return (
     <table className="st num">
-      <caption className="sr-only">Monthly and annual cash flow statement</caption>
+      <caption className="sr-only">{w.statement}</caption>
       <thead>
         <tr>
-          <th scope="col">Line</th>
-          <th scope="col">Monthly</th>
-          <th scope="col">Yearly</th>
+          <th scope="col">{w.line}</th>
+          <th scope="col">{w.monthly}</th>
+          <th scope="col">{w.yearly}</th>
         </tr>
       </thead>
       <tbody>

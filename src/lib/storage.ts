@@ -34,10 +34,10 @@ export interface StorageStatus {
   hasUnsavedChanges: boolean;
 }
 
-const KEY = "rentwise:v3";
-/** Older data. Read once and migrated; never written or deleted except by "Clear my data", so a rollback still finds it. */
-const V2_KEY = "rentwise:v2";
-const V1_KEY = "rentwise:v1";
+const KEY = "rentwise:kz:v1";
+/** The US version's data (USD, US-shaped). Never read into the app, written or deleted: only offered as a download. */
+export const OLD_KEYS = ["rentwise:v3", "rentwise:v2", "rentwise:v1"] as const;
+const OLD_NOTICE_HIDDEN = "rentwise:kz:old-notice-hidden";
 
 export const EMPTY_STORED: Stored = { v: 3, deals: [], activeId: null, scenarios: DEFAULT_SCENARIOS, constraints: { minMonthlyCashFlow: 0 } };
 
@@ -112,10 +112,8 @@ const listeners = new Set<() => void>();
 
 function read(): Stored {
   let raw: string | null;
-  let older: string | null = null;
   try {
     raw = localStorage.getItem(KEY);
-    if (raw === null) older = localStorage.getItem(V2_KEY) ?? localStorage.getItem(V1_KEY);
   } catch {
     loadFailed = true;
     storageStatus = { problem: "read", hasUnsavedChanges: false };
@@ -124,16 +122,7 @@ function read(): Stored {
   loadFailed = false;
   storageStatus = SAVED;
   try {
-    if (raw) return StoredStateSchema.safeParse(JSON.parse(raw)).data ?? EMPTY_STORED; // corrupt data never crashes the app
-    if (!older) return EMPTY_STORED;
-    const migrated = parseAnyVersion(JSON.parse(older));
-    if (!migrated) return EMPTY_STORED;
-    try {
-      localStorage.setItem(KEY, JSON.stringify(migrated)); // pin the new ids; older keys stay as they were
-    } catch {
-      /* still usable in memory; the next edit retries the save */
-    }
-    return migrated;
+    return raw ? (StoredStateSchema.safeParse(JSON.parse(raw)).data ?? EMPTY_STORED) : EMPTY_STORED; // corrupt data never crashes the app
   } catch {
     return EMPTY_STORED;
   }
@@ -235,13 +224,12 @@ export function renameDeal(id: string, nickname: string): boolean {
 }
 
 /** A new deal with the same inputs, and no plan or actuals: a variant to try, not a second owned property. */
-export function duplicateDeal(id: string): boolean {
+export function duplicateDeal(id: string, copyName: (name: string) => string): boolean {
   const now = new Date().toISOString();
   return setStored((s) => {
     const d = s.deals.find((x) => x.id === id);
     if (!d) return s;
-    const base = (d.inputs.nickname || "Untitled property").slice(0, 53);
-    const copy: Deal = { ...d, id: newId(), createdAt: now, updatedAt: now, inputs: { ...d.inputs, nickname: `${base} (copy)` }, plan: null, actuals: [], ledger: EMPTY_LEDGER };
+    const copy: Deal = { ...d, id: newId(), createdAt: now, updatedAt: now, inputs: { ...d.inputs, nickname: copyName(d.inputs.nickname ?? "").slice(0, 60) }, plan: null, actuals: [], ledger: EMPTY_LEDGER };
     return { ...s, deals: [...s.deals, copy] };
   });
 }
@@ -249,20 +237,22 @@ export function duplicateDeal(id: string): boolean {
 export const deleteDeal = (id: string) =>
   setStored((s) => ({ ...s, deals: s.deals.filter((d) => d.id !== id), activeId: s.activeId === id ? null : s.activeId }));
 
+export type ImportError = "json" | "notExport" | "empty" | "saveFailed" | "full";
+
 /**
- * Adds the properties from an exported file (v1 or v2), validated. Your scenarios and targets stay as they are.
- * Returns how many properties were added, or an error message.
+ * Adds the properties from an exported file (any version), validated. Your scenarios and targets stay as they are.
+ * Returns how many properties were added, or why none were.
  */
-export function importAppData(text: string): number | string {
+export function importAppData(text: string): number | ImportError {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    return "That file isn't valid JSON.";
+    return "json";
   }
   const incoming = parseAnyVersion(data);
-  if (!incoming) return "That file isn't a RentWise export, or it has values RentWise can't use.";
-  if (!incoming.deals.length) return "That file has no properties in it.";
+  if (!incoming) return "notExport";
+  if (!incoming.deals.length) return "empty";
   let added = 0;
   const ok = setStored((s) => {
     const room = 50 - s.deals.length;
@@ -271,17 +261,14 @@ export function importAppData(text: string): number | string {
     added = fresh.length;
     return { ...s, deals: [...s.deals, ...fresh] };
   });
-  if (!ok) return "Your saved data couldn't be updated. Try again.";
-  return added || "You already have 50 properties. Delete some before importing.";
+  if (!ok) return "saveFailed";
+  return added || "full";
 }
 
 export function clearAppData(): boolean {
   getSnapshot();
   try {
-    // Phase 1 data first: if the second removal fails, a reload must not re-migrate data the user asked to delete.
-    localStorage.removeItem(V1_KEY);
-    localStorage.removeItem(V2_KEY);
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(KEY); // the old version's keys are not ours to delete
   } catch {
     storageStatus = { ...storageStatus, problem: "clear" };
     notify();
@@ -308,11 +295,43 @@ export function retryStorage(): boolean {
   return saved;
 }
 
-export function exportAppData(): void {
-  getSnapshot();
-  const blob = new Blob([JSON.stringify(stored, null, 2)], { type: "application/json" });
-  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "rentwise-data.json" });
+function download(data: unknown, name: string): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: name });
   a.click();
   // Revoking in the same tick can cancel the download in Safari/Firefox.
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+export function exportAppData(): void {
+  getSnapshot();
+  download(stored, "rentwise-data.json");
+}
+
+/** The old version's keys that exist, with their raw stored text, untouched. Empty when there are none or storage is blocked. */
+export function oldData(): Record<string, string> {
+  try {
+    return Object.fromEntries(OLD_KEYS.flatMap((k) => { const v = localStorage.getItem(k); return v === null ? [] : [[k, v]]; }));
+  } catch {
+    return {};
+  }
+}
+
+export const exportOldData = () => download(oldData(), "rentwise-old-data.json");
+
+/** Whether to show the one-time notice about the old version's data. A per-browser convenience, so failures just hide it. */
+export function oldNoticeHidden(): boolean {
+  try {
+    return localStorage.getItem(OLD_NOTICE_HIDDEN) === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function hideOldNotice(): void {
+  try {
+    localStorage.setItem(OLD_NOTICE_HIDDEN, "1");
+  } catch {
+    /* it shows again next visit; nothing is lost */
+  }
 }

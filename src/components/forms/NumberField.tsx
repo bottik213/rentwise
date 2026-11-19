@@ -2,31 +2,26 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { InfoIcon } from "@/components/Icons";
 import { useTapTip } from "@/components/useTapTip";
+import type { I18n } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 import type { AssumptionSource } from "@/lib/finance/types";
 import { parseNumber } from "@/lib/validation";
 import { type FieldDef, toDisplay, toEngine } from "./fields";
 
 const SOURCES: AssumptionSource[] = ["estimate", "listing", "bill", "quote", "document"];
-export const SOURCE_LABEL: Record<AssumptionSource, string> = {
-  estimate: "Estimate",
-  listing: "From listing",
-  bill: "From a bill",
-  quote: "From a quote",
-  document: "From a document",
-};
 
-function validate(def: Pick<FieldDef, "kind" | "min" | "max">, raw: string): { value: number } | { error: string } {
-  const n = parseNumber(raw);
-  if (n === null) return { error: "Enter a number" };
-  if (n < def.min || n > def.max) return { error: `Between ${def.min.toLocaleString()} and ${def.max.toLocaleString()}` };
-  if (def.kind === "years" && !Number.isInteger(n)) return { error: "Whole years only" };
+function validate(def: Pick<FieldDef, "kind" | "min" | "max">, raw: string, { t, locale, num }: I18n): { value: number } | { error: string } {
+  const n = parseNumber(raw, locale);
+  if (n === null) return { error: t.field.enterNumber };
+  if (n < def.min || n > def.max) return { error: t.field.between(num(def.min), num(def.max)) };
+  if (def.kind === "years" && !Number.isInteger(n)) return { error: t.field.wholeYears };
   return { value: toEngine(def.kind, n) };
 }
 
-/** Money shows thousands separators once you leave the field; while typing, your own text stays. */
-const pretty = (kind: FieldDef["kind"], v: number) => {
+/** Money shows thousands separators once you leave the field; while typing, your own text stays. Rates use the locale's decimal mark. */
+const pretty = (kind: FieldDef["kind"], v: number, i: I18n) => {
   const s = toDisplay(kind, v);
-  return kind === "money" ? Number(s).toLocaleString("en-US", { maximumFractionDigits: 2 }) : s;
+  return kind === "money" || kind === "rate" ? i.num(Number(s), kind === "rate" ? 4 : 2) : s;
 };
 
 interface Props {
@@ -46,10 +41,12 @@ export function NumberField({ def, value, onCommit, disabled, source, onSource, 
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const tip = useTapTip<HTMLDivElement>();
+  const i = useI18n();
+  const { t } = i;
   const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? (value === undefined ? "" : pretty(def.kind, value));
-  const result = draft === null ? null : validate(def, draft);
-  const error = result && "error" in result ? result.error : value === undefined && draft !== null ? "Required" : null;
+  const shown = draft ?? (value === undefined ? "" : pretty(def.kind, value, i));
+  const result = draft === null ? null : validate(def, draft, i);
+  const error = result && "error" in result ? result.error : value === undefined && draft !== null ? t.field.required : null;
 
   // Invalid drafts must block form submission even while calculations keep the last valid value.
   useEffect(() => {
@@ -61,28 +58,28 @@ export function NumberField({ def, value, onCommit, disabled, source, onSource, 
       <div className="flabel">
         <label htmlFor={id}>{def.label}</label>
         {def.help && (
-          <button type="button" className="ib" aria-label={`About ${def.label}`} aria-expanded={tip.open} onClick={tip.toggle}>
+          <button type="button" className="ib" aria-label={t.field.about(def.label)} aria-expanded={tip.open} onClick={tip.toggle}>
             <InfoIcon />
           </button>
         )}
         {extra}
         {onSource && (
           <select
-            aria-label={`${def.label} source`}
+            aria-label={t.field.source(def.label)}
             value={source ?? "estimate"}
             onChange={(e) => onSource(e.target.value as AssumptionSource)}
             className={`src ${source && source !== "estimate" ? "ok" : ""}`}
           >
             {SOURCES.map((s) => (
               <option key={s} value={s}>
-                {SOURCE_LABEL[s]}
+                {t.sources[s]}
               </option>
             ))}
           </select>
         )}
       </div>
       <div className={`inp ${error ? "err" : ""} ${disabled ? "off" : ""}`}>
-        {def.kind === "money" && <span className="pre" aria-hidden>$</span>}
+        {def.kind === "money" && <span className="pre" aria-hidden>₸</span>}
         <input
           ref={inputRef}
           id={id}
@@ -96,7 +93,7 @@ export function NumberField({ def, value, onCommit, disabled, source, onSource, 
           onFocus={() => setDraft(shown)}
           onChange={(e) => {
             setDraft(e.target.value);
-            const r = validate(def, e.target.value);
+            const r = validate(def, e.target.value, i);
             if ("value" in r) onCommit(r.value);
           }}
           onBlur={() => {

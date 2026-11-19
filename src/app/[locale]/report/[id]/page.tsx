@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Report } from "@/components/report/Report";
 import { SharePanel } from "@/components/report/SharePanel";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
+import { useI18n } from "@/i18n/client";
 import { accentProblem, readLogo } from "@/lib/branding";
 import { setStored, useAppState, type Stored } from "@/lib/storage";
 import "../../results/results.css";
@@ -19,6 +20,8 @@ const setBranding = (patch: Partial<Branding>) =>
   });
 
 function BrandingPanel({ b }: { b: Branding }) {
+  const { t } = useI18n();
+  const R = t.report;
   const [accent, setAccent] = useState(b.accent ?? "#1e4d3b");
   const [err, setErr] = useState<string | null>(null);
   const text = (k: "name" | "company" | "contact", label: string, max: number) => (
@@ -31,35 +34,35 @@ function BrandingPanel({ b }: { b: Branding }) {
   );
   const pick = (hex: string) => {
     setAccent(hex);
-    const problem = accentProblem(hex);
+    const problem = accentProblem(hex, t);
     setErr(problem);
     if (!problem) setBranding({ accent: hex });
   };
   return (
     <section className="card noprint bpanel" aria-labelledby="b-h">
-      <h2 className="disp" id="b-h" style={{ margin: 0, fontSize: 22 }}>Your branding</h2>
-      <p className="note" style={{ margin: "4px 0 16px" }}>Saved in this browser only. It appears on the report and the PDF; the disclaimer always stays.</p>
+      <h2 className="disp" id="b-h" style={{ margin: 0, fontSize: 22 }}>{R.bTitle}</h2>
+      <p className="note" style={{ margin: "4px 0 16px" }}>{R.bNote}</p>
       <div className="bgrid">
-        {text("name", "Your name", 60)}
-        {text("company", "Company", 60)}
-        {text("contact", "Contact line", 120)}
+        {text("name", R.yourName, 60)}
+        {text("company", R.company, 60)}
+        {text("contact", R.contact, 120)}
         <label className="fld">
-          <span className="flabel">Accent color</span>
+          <span className="flabel">{R.accent}</span>
           <span className={`inp ${err ? "err" : ""}`}>
-            <input type="color" aria-label="Accent color picker" value={/^#[0-9a-f]{6}$/i.test(accent) ? accent : "#000000"} onChange={(e) => pick(e.target.value)} style={{ width: 32, flex: "none", padding: 0, border: 0, background: "none" }} />
-            <input aria-label="Accent color hex" value={accent} maxLength={7} aria-invalid={!!err} aria-describedby="acc-err" onChange={(e) => pick(e.target.value.trim())} />
+            <input type="color" aria-label={R.accentPicker} value={/^#[0-9a-f]{6}$/i.test(accent) ? accent : "#000000"} onChange={(e) => pick(e.target.value)} style={{ width: 32, flex: "none", padding: 0, border: 0, background: "none" }} />
+            <input aria-label={R.accentHex} value={accent} maxLength={7} aria-invalid={!!err} aria-describedby="acc-err" onChange={(e) => pick(e.target.value.trim())} />
           </span>
           <span id="acc-err" className="ferr" hidden={!err}>{err}</span>
         </label>
         <div className="fld">
-          <span className="flabel">Logo (PNG or JPG, up to 200 KB)</span>
+          <span className="flabel">{R.logoLabel}</span>
           <div className="logo-row">
             {b.logo && (
               // eslint-disable-next-line @next/next/no-img-element -- a local data URL
-              <img src={b.logo} alt="Your logo" />
+              <img src={b.logo} alt={R.yourLogo} />
             )}
             <label className="btn btn-quiet btn-sm">
-              {b.logo ? "Replace" : "Add logo"}
+              {b.logo ? R.replace : R.addLogo}
               <input
                 type="file"
                 accept="image/png,image/jpeg"
@@ -67,11 +70,11 @@ function BrandingPanel({ b }: { b: Branding }) {
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   e.target.value = "";
-                  if (f) readLogo(f).then((logo) => { setErr(null); if (!setBranding({ logo })) setErr("That logo couldn't be saved."); }, (x: Error) => setErr(x.message));
+                  if (f) readLogo(f, t).then((logo) => { setErr(null); if (!setBranding({ logo })) setErr(R.logoFailed); }, (x: Error) => setErr(x.message));
                 }}
               />
             </label>
-            {b.logo && <button type="button" className="lnk danger" onClick={() => setBranding({ logo: undefined })}>Remove</button>}
+            {b.logo && <button type="button" className="lnk danger" onClick={() => setBranding({ logo: undefined })}>{R.remove}</button>}
           </div>
         </div>
       </div>
@@ -82,26 +85,28 @@ function BrandingPanel({ b }: { b: Branding }) {
 export default function ReportPage() {
   const s = useAppState();
   const { id } = useParams<{ id: string }>();
+  const { t, path } = useI18n();
+  const R = t.report;
   const [panel, setPanel] = useState<"branding" | "share" | null>(null);
   const deal = s?.deals.find((d) => d.id === id);
-  const name = deal?.inputs.nickname || "Property";
+  const name = deal?.inputs.nickname || t.common.property;
 
   useEffect(() => {
     if (!deal) return;
     const before = document.title;
-    document.title = `RentWise report: ${name}`; // becomes the PDF file name
+    document.title = R.docTitle(name); // becomes the PDF file name
     return () => void (document.title = before);
-  }, [deal, name]);
+  }, [deal, name, R]);
 
   if (!s) return <PageSkeleton />;
   if (!deal) {
     return (
       <div className="pg-results pg-report">
         <div className="empty">
-          <h1 className="disp">This report isn&apos;t in this browser</h1>
-          <p>Reports are made from properties saved here. The property may have been deleted, or saved in another browser.</p>
+          <h1 className="disp">{R.missing}</h1>
+          <p>{R.missingText}</p>
           <div className="ctas">
-            <Link href="/compare" className="btn btn-primary">Your properties</Link>
+            <Link href={path("/compare")} className="btn btn-primary">{t.common.yourProperties}</Link>
           </div>
         </div>
       </div>
@@ -113,16 +118,16 @@ export default function ReportPage() {
     <div className="pg-results pg-report" data-brand={accent ? "" : undefined} style={accent ? ({ "--accent": accent } as React.CSSProperties) : undefined}>
       <div className="rwrap">
         <div className="rbar noprint">
-          <Link href="/results" onClick={() => setStored((x) => ({ ...x, activeId: deal.id }))} className="lnk">← Back to the analysis</Link>
+          <Link href={path("/results")} onClick={() => setStored((x) => ({ ...x, activeId: deal.id }))} className="lnk">{R.back}</Link>
           <span className="sp" />
           <button type="button" className="btn btn-quiet btn-sm" aria-expanded={panel === "branding"} onClick={() => setPanel((o) => (o === "branding" ? null : "branding"))}>
-            Branding
+            {R.branding}
           </button>
           <button type="button" className="btn btn-quiet btn-sm" aria-expanded={panel === "share"} onClick={() => setPanel((o) => (o === "share" ? null : "share"))}>
-            Share link
+            {R.shareLink}
           </button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
-            Download PDF
+            {t.common.downloadPdf}
           </button>
         </div>
         {panel === "branding" && <BrandingPanel b={s.branding ?? {}} />}

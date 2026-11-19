@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_PROPERTY as P } from "../../src/data/demo-property";
-import { COMPARE_ROWS, bestIndexes, dealMetrics, differingAssumptions } from "../../src/lib/compare";
+import { i18n } from "../../src/i18n";
+import { bestIndexes, compareRows, dealMetrics, differingAssumptions } from "../../src/lib/compare";
 import { DEFAULT_SCENARIOS } from "../../src/lib/finance/scenarios";
 
-const metric = (label: string) => COMPARE_ROWS.find((r) => r.label === label)!;
+const EN = i18n("en");
+const metric = (label: string) => compareRows(EN).find((r) => r.label === label)!;
 
 describe("compare", () => {
   it("uses the same engine as the Analysis page", () => {
-    const m = dealMetrics(P, DEFAULT_SCENARIOS, { minMonthlyCashFlow: 0 });
+    const m = dealMetrics(P, DEFAULT_SCENARIOS);
     expect(m.base.reserveAdjustedCashFlow).toBe(6536);
-    expect(m.ceiling).toMatchObject({ status: "feasible", price: 26_309_900 });
-    expect(m.projection.irr.ok && m.projection.irr.rate).toBeCloseTo(0.092883, 5);
     expect(m.dscr).toBeCloseTo(143_530 / 124_744, 10);
-    expect(dealMetrics({ ...P, allCash: true }, DEFAULT_SCENARIOS, {}).dscr).toBeNull();
+    expect(dealMetrics({ ...P, allCash: true }, DEFAULT_SCENARIOS).dscr).toBeNull();
   });
 
   it("marks the best per row in the right direction, ties included, and never a lone value", () => {
@@ -26,10 +26,9 @@ describe("compare", () => {
 
   it("lists only the assumptions that differ, with each deal's value", () => {
     const b = { ...P, vacancyPct: 0.1, projection: { holdYears: 10, rentGrowth: 0.02, expenseGrowth: 0.03, valueGrowth: 0.03, sellingCostPct: 0.06 } };
-    expect(differingAssumptions([P, b])).toEqual([
+    expect(differingAssumptions([P, b], EN)).toEqual([
       { label: "Vacancy", values: ["5.00%", "10.00%"] },
-      { label: "Rent growth", values: ["3.00%", "2.00%"] },
     ]);
-    expect(differingAssumptions([P, { ...P, purchasePrice: 1 }])).toEqual([]); // price is a fact, shown in the table
+    expect(differingAssumptions([P, { ...P, purchasePrice: 1 }], EN)).toEqual([]); // price is a fact, shown in the table
   });
 });

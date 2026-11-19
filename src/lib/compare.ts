@@ -1,27 +1,19 @@
-import { FIELDS } from "../components/forms/fields";
-import { offerCeiling } from "./finance/offer-ceiling";
-import { DEFAULT_PROJECTION, projectScenarios, type ProjectionResult } from "./finance/projection";
+import type { I18n } from "@/i18n";
+import { fieldDef, type FieldKey } from "../components/forms/fields";
 import { runScenarios } from "./finance/scenarios";
-import type { OfferCeilingResult, OfferConstraints, PropertyInputs, ScenarioAdjustments, ScenarioName, Underwriting } from "./finance/types";
-import { pct, usd } from "./format";
+import type { PropertyInputs, ScenarioAdjustments, ScenarioName, Underwriting } from "./finance/types";
 
 export interface DealMetrics {
   base: Underwriting;
-  conservative: Underwriting;
-  projection: ProjectionResult;
-  ceiling: OfferCeilingResult;
   /** NOI ÷ P&I; null with no mortgage payment. */
   dscr: number | null;
 }
 
-/** Every number comes from the same engine as the Analysis page, with your scenarios and targets. */
-export function dealMetrics(i: PropertyInputs, scenarios: Record<ScenarioName, ScenarioAdjustments>, constraints: OfferConstraints): DealMetrics {
+/** Every number comes from the same engine as the Analysis page. */
+export function dealMetrics(i: PropertyInputs, scenarios: Record<ScenarioName, ScenarioAdjustments>): DealMetrics {
   const r = runScenarios(i, scenarios);
   return {
     base: r.base,
-    conservative: r.conservative,
-    projection: projectScenarios(i, scenarios).base,
-    ceiling: offerCeiling(i, constraints, scenarios.conservative),
     dscr: r.base.monthlyPI > 0 ? r.base.noi / r.base.monthlyPI : null,
   };
 }
@@ -33,31 +25,24 @@ export interface CompareRow {
   format: (v: number) => string;
 }
 
-const money = (v: number) => usd(Math.round(v));
-const monthly = (v: number) => `${usd(Math.round(v), { exact: true })}/mo`;
-const rate = (v: number) => pct(v);
-
-export const COMPARE_ROWS: CompareRow[] = [
-  { label: "Price", better: "lower", value: (_, i) => i.purchasePrice, format: money },
-  { label: "Rent", better: "higher", value: (_, i) => i.monthlyRent, format: (v) => `${usd(v)}/mo` },
-  { label: "Cash invested", better: "lower", value: (m) => m.base.cashInvested, format: money },
-  { label: "Cash flow after reserves", better: "higher", value: (m) => m.base.reserveAdjustedCashFlow, format: monthly },
-  { label: "NOI", better: "higher", value: (m) => m.base.noi, format: monthly },
-  { label: "Cap rate", better: "higher", value: (m) => m.base.capRate, format: rate },
-  { label: "Cash-on-cash", better: "higher", value: (m) => m.base.cashOnCash, format: rate },
-  { label: "DSCR", better: "higher", value: (m) => m.dscr, format: (v) => `${v.toFixed(2)}×` },
-  { label: "Break-even rent", better: "lower", value: (m) => m.base.breakEvenRent, format: (v) => `${usd(v)}/mo` },
-  {
-    label: "Offer ceiling vs asking",
-    better: "higher",
-    value: (m) => (m.ceiling.status === "feasible" && !m.ceiling.hitSearchBound ? m.ceiling.deltaFromAsking : null),
-    format: (v) => usd(v, { signed: true }),
-  },
-  { label: "Conservative cash flow", better: "higher", value: (m) => m.conservative.reserveAdjustedCashFlow, format: monthly },
-  { label: "Total profit over the hold", better: "higher", value: (m) => m.projection.totalProfit, format: money },
-  { label: "IRR over the hold", better: "higher", value: (m) => (m.projection.irr.ok ? m.projection.irr.rate : null), format: rate },
-  { label: "Equity multiple", better: "higher", value: (m) => m.projection.equityMultiple, format: (v) => `${v.toFixed(2)}×` },
-];
+export function compareRows({ t, money, pct, num }: I18n): CompareRow[] {
+  const r = t.compare.rows;
+  const whole = (v: number) => money(Math.round(v));
+  const monthly = (v: number) => `${money(Math.round(v), { exact: true })}${t.common.mo}`;
+  const perMonth = (v: number) => `${money(v)}${t.common.mo}`;
+  const rate = (v: number) => pct(v);
+  return [
+    { label: r.price, better: "lower", value: (_, i) => i.purchasePrice, format: whole },
+    { label: r.rent, better: "higher", value: (_, i) => i.monthlyRent, format: perMonth },
+    { label: r.cashInvested, better: "lower", value: (m) => m.base.cashInvested, format: whole },
+    { label: r.cf, better: "higher", value: (m) => m.base.reserveAdjustedCashFlow, format: monthly },
+    { label: r.noi, better: "higher", value: (m) => m.base.noi, format: monthly },
+    { label: r.cap, better: "higher", value: (m) => m.base.capRate, format: rate },
+    { label: r.coc, better: "higher", value: (m) => m.base.cashOnCash, format: rate },
+    { label: r.dscr, better: "higher", value: (m) => m.dscr, format: (v) => `${num(v)}×` },
+    { label: r.be, better: "lower", value: (m) => m.base.breakEvenRent, format: perMonth },
+  ];
+}
 
 /** Indexes of the best value(s); none when fewer than two deals have a value or all are equal. */
 export function bestIndexes(values: (number | null)[], better: "higher" | "lower"): number[] {
@@ -67,33 +52,19 @@ export function bestIndexes(values: (number | null)[], better: "higher" | "lower
   return values.flatMap((v, i) => (v === target ? [i] : []));
 }
 
-type Shown = { key: string; label: string; show: (i: PropertyInputs) => string };
-const asField = (k: keyof typeof FIELDS): Shown => {
-  const f = FIELDS[k];
-  return { key: k, label: f.label, show: (i) => (f.kind === "money" ? usd(i[k]) : f.kind === "rate" ? pct(i[k], 2) : String(i[k])) };
-};
-const proj = (k: keyof typeof DEFAULT_PROJECTION, label: string, kind: "rate" | "years"): Shown => ({
-  key: `projection.${k}`,
-  label,
-  show: (i) => {
-    const v = (i.projection ?? DEFAULT_PROJECTION)[k];
-    return kind === "rate" ? pct(v, 2) : `${v} years`;
-  },
-});
-
 /** Assumptions (not the property facts like price and rent) that a comparison should flag when they differ. */
-const ASSUMPTIONS: Shown[] = [
-  ...(["vacancyPct", "maintenancePct", "managementPct", "capexPct", "downPaymentPct", "annualInterestRate", "loanTermYears", "initialReserve"] as const).map(asField),
-  { key: "allCash", label: "All-cash purchase", show: (i) => (i.allCash ? "Yes" : "No") },
-  { key: "closing", label: "Closing costs", show: (i) => (i.closingCostMode === "percent" ? `${pct(i.closingCostValue, 2)} of price` : usd(i.closingCostValue)) },
-  proj("holdYears", "Hold period", "years"),
-  proj("rentGrowth", "Rent growth", "rate"),
-  proj("expenseGrowth", "Expense growth", "rate"),
-  proj("valueGrowth", "Value growth", "rate"),
-  proj("sellingCostPct", "Selling costs", "rate"),
-];
+const ASSUMED: FieldKey[] = ["vacancyPct", "maintenancePct", "managementPct", "capexPct", "downPaymentPct", "annualInterestRate", "loanTermYears", "initialReserve"];
 
 /** Only the assumptions whose values differ between the deals, with each deal's value. */
-export function differingAssumptions(deals: PropertyInputs[]): { label: string; values: string[] }[] {
-  return ASSUMPTIONS.map((a) => ({ label: a.label, values: deals.map(a.show) })).filter((r) => new Set(r.values).size > 1);
+export function differingAssumptions(deals: PropertyInputs[], i: I18n): { label: string; values: string[] }[] {
+  const { t, money, pct } = i;
+  const shown: { label: string; show: (p: PropertyInputs) => string }[] = [
+    ...ASSUMED.map((k) => {
+      const f = fieldDef(t, k);
+      return { label: f.label, show: (p: PropertyInputs) => (f.kind === "money" ? money(p[k]) : f.kind === "rate" ? pct(p[k], 2) : String(p[k])) };
+    }),
+    { label: t.compare.allCash, show: (p) => (p.allCash ? t.compare.yes : t.compare.no) },
+    { label: t.compare.closing, show: (p) => (p.closingCostMode === "percent" ? t.compare.ofPrice(pct(p.closingCostValue, 2)) : money(p.closingCostValue)) },
+  ];
+  return shown.map((a) => ({ label: a.label, values: deals.map(a.show) })).filter((r) => new Set(r.values).size > 1);
 }

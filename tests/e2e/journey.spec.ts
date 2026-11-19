@@ -46,7 +46,7 @@ async function closeQuick(page: Page) {
   await expect(sheet(page)).toBeHidden(); // wait out the slide-down before the next step
 }
 
-test("analyze → stress → offer ceiling → actuals → variance", async ({ page }) => {
+test("analyze → actuals → variance", async ({ page }) => {
   const errors = watchConsole(page);
 
   // 1. No sign-up: the example loads straight into the analysis.
@@ -67,30 +67,21 @@ test("analyze → stress → offer ceiling → actuals → variance", async ({ p
   await closeQuick(page);
   await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
 
-  // 3. Offer ceiling, then the infeasible state.
-  const minCf = page.getByLabel("Min. cash flow after reserves", { exact: true });
-  await minCf.fill("200");
-  await expect(page.getByText(/Limited by\s*minimum cash flow/)).toBeVisible();
-  await expect(page.getByText(/vs\. asking \$250,000/)).toBeVisible();
-  await minCf.fill("5000");
-  await expect(page.getByText("No price works")).toBeVisible();
-  await minCf.fill("0");
-
-  // 4. Mark as owned, record one on-plan month and one with a surprise $1,800 repair.
+  // 3. Mark as owned, record one on-plan month and one with a surprise $1,800 repair.
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await expect(page).toHaveURL(/\/performance$/);
   await page.getByRole("button", { name: "Add month" }).click();
   await page.getByLabel("Repairs & maintenance", { exact: true }).fill("1996"); // forecast $196 + $1,800
   await page.getByRole("button", { name: "Add month" }).click();
 
-  // 5. Variance reconciles to the cent and is explained.
+  // 4. Variance reconciles to the cent and is explained.
   await expect(row(page, /^Total variance/)).toContainText("−$1,800.00");
   await expect(row(page, /^Repairs & maintenance/)).toContainText("−$1,800.00");
   await expect(page.getByText(/Repairs & maintenance: .* −\$1,800\.00 to cash flow\./)).toBeVisible();
   await expect(page.getByRole("img", { name: /Effect on cash flow by category/ })).toBeVisible();
   await noHorizontalScroll(page);
 
-  // 6. Actuals persist after refresh.
+  // 5. Actuals persist after refresh.
   await page.reload();
   await expect(row(page, /^Total variance/)).toContainText("−$1,800.00");
   await expect(page.getByRole("listitem").filter({ hasText: "Delete" })).toHaveCount(2);
@@ -125,7 +116,7 @@ test("empty states and clearing data", async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBeNull();
 });
 
-test("all-cash purchase: no P&I, price-independent cash flow, cash-on-cash ceiling", async ({ page }) => {
+test("all-cash purchase: no P&I, price-independent cash flow", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("link", { name: "All inputs" }).click();
@@ -135,28 +126,6 @@ test("all-cash purchase: no P&I, price-independent cash flow, cash-on-cash ceili
   // Hand-computed: NOI $1,435.30 − P&I $0 − CapEx reserve $122.50.
   await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
   await expect(page.getByLabel("Interest rate", { exact: true })).toBeDisabled();
-  // Cash flow doesn't depend on price, so a $0 cash-flow target can't limit it.
-  await expect(page.getByText("Not limited by your targets")).toBeVisible();
-
-  // CoC = $15,753.60/yr ÷ (P + 3%·P + $15,000) ≥ 8% → P ≤ $176,621.36.
-  await page.getByRole("checkbox", { name: "Use Min. cash-on-cash" }).check();
-  await expect(page.getByText(/Limited by\s*minimum cash-on-cash/)).toBeVisible();
-  await expect(page.getByText("$176,621", { exact: true }).last()).toBeAttached();
-  // At 5%: P ≤ $291,332.04.
-  await page.getByLabel("Min. cash-on-cash", { exact: true }).fill("5");
-  await expect(page.getByText("$291,332", { exact: true }).last()).toBeAttached();
-});
-
-test("must also pass the conservative scenario lowers the ceiling", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Try the example property" }).click();
-  await page.getByLabel("Min. cash flow after reserves", { exact: true }).fill("200");
-  await expect(page.getByText("$223,017", { exact: true }).last()).toBeAttached();
-
-  // Conservative: NOI $1,176.25, reserve $186.20 → P&I ≤ $790.05 → price ≤ $158,334.
-  await page.getByRole("checkbox", { name: "Must also pass the conservative scenario" }).check();
-  await expect(page.getByText(/Limited by\s*minimum cash flow\s*in the conservative scenario/)).toBeVisible();
-  await expect(page.getByText("$158,334", { exact: true }).last()).toBeAttached();
 });
 
 test("export downloads the saved data as JSON", async ({ page }) => {
@@ -259,18 +228,13 @@ test("actuals block invalid drafts, reset them, and save corrected amounts", asy
   expect(actuals[0].insurance).toBe(26000);
 });
 
-test("loading the example protects edited inputs, scenarios and targets", async ({ page }) => {
+test("loading the example protects edited inputs", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Try the example property" }).click();
-  const edits = [
-    ["Scheduled rent", "3000"],
-    ["Conservative Rent %", "-10"],
-    ["Min. cash flow after reserves", "200"],
-  ];
+  const edits = [["Scheduled rent", "3000"]];
 
   for (const [label, value] of edits) {
-    if (label === "Scheduled rent") await openQuick(page);
-    if (label.startsWith("Conservative")) await page.getByText("Edit scenario assumptions").click();
+    await openQuick(page);
     await page.getByLabel(label, { exact: true }).fill(value);
     await closeQuick(page);
     const saved = await page.evaluate(() => localStorage.getItem("rentwise:v3"));

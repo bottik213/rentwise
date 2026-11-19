@@ -170,9 +170,13 @@ export const StoredStateV2Schema = z.object({
 export const DealV3Schema = DealSchema.extend({ ledger: LedgerSchema });
 export const StoredStateSchema = StoredStateV2Schema.extend({ v: z.literal(3), deals: z.array(DealV3Schema).max(50) });
 
-/** Parse a user-typed number: "$250,000" → 250000. Empty or junk → null. */
-export function parseNumber(raw: string): number | null {
-  const s = raw.replace(/[$,%\s]/g, "");
+/**
+ * Parse a user-typed number. English: commas group ("250,000"). Russian and Kazakh: spaces group and a comma
+ * or a dot is the decimal mark ("250 000", "0,5"). Currency and % signs are ignored. Empty or junk → null.
+ */
+export function parseNumber(raw: string, locale: "ru" | "kk" | "en" = "en"): number | null {
+  let s = raw.replace(/[$₸%\s]/g, "");
+  s = locale === "en" ? s.replace(/,/g, "") : s.replace(",", ".");
   if (s === "") return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;

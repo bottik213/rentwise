@@ -203,7 +203,8 @@ describe("usual monthly bills", () => {
     const { missingBills } = await import("../../src/lib/ledger/bills");
     const { monthlyForecast } = await import("../../src/lib/finance/variance");
     const planned = monthlyForecast(u);
-    const got = missingBills(["2026-01", "2026-02"], [exp("2026-01-05", "propertyTax", 31_000)], planned);
+    const got = missingBills(["2026-01", "2026-02"], [exp("2026-01-05", "propertyTax", 31_000)], planned, "Usual monthly bill");
+    expect(got.every((b) => b.note === "Usual monthly bill")).toBe(true);
     expect(got.filter((b) => b.date === "2026-01-01").map((b) => b.category)).toEqual(["mortgagePI", "insurance", "utilities", "management"]);
     expect(got.filter((b) => b.date === "2026-02-01").map((b) => b.category)).toEqual(["mortgagePI", "propertyTax", "insurance", "utilities", "management"]);
     expect(got.find((b) => b.category === "mortgagePI")!.amount).toBe(u.monthlyPI);

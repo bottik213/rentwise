@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { NumberField } from "@/components/forms/NumberField";
 import { Badge, type Status } from "@/components/Icons";
-import { monthLabel, usd } from "@/lib/format";
+import type { I18n } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 import { dayOf, monthOf } from "@/lib/ledger/dates";
 import { feeFor, settleLease, type RentStatus } from "@/lib/ledger/rent";
 import type { IsoDate, Lease, Ledger } from "@/lib/ledger/types";
@@ -10,16 +11,9 @@ import { newId } from "@/lib/storage";
 
 type SetLedger = (fn: (l: Ledger) => Ledger) => boolean;
 
-const STATUS: Record<RentStatus, { st: Status; label: string }> = {
-  paid: { st: "good", label: "Paid" },
-  late: { st: "warn", label: "Paid late" },
-  partial: { st: "warn", label: "Partial" },
-  unpaid: { st: "bad", label: "Unpaid" },
-  due: { st: "none", label: "Due" },
-  upcoming: { st: "none", label: "Upcoming" },
-};
-const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
-const feeText = (l: Lease) => (!l.lateFee ? "None" : l.lateFee.kind === "flat" ? usd(l.lateFee.amount, { exact: true }) : `${+(l.lateFee.amount * 100).toFixed(2)}% of rent`);
+const STATUS: Record<RentStatus, Status> = { paid: "good", late: "warn", partial: "warn", unpaid: "bad", due: "none", upcoming: "none" };
+const feeText = (l: Lease, { t, money, num }: I18n) =>
+  !l.lateFee ? t.common.none : l.lateFee.kind === "flat" ? money(l.lateFee.amount, { exact: true }) : t.rent.pctOfRent(num(l.lateFee.amount * 100));
 
 function DateField({ label, value, onChange, required, help }: { label: string; value: string; onChange: (v: string) => void; required?: boolean; help?: string }) {
   return (
@@ -34,6 +28,8 @@ function DateField({ label, value, onChange, required, help }: { label: string; 
 }
 
 function LeaseForm({ initial, onSave, onCancel }: { initial: Lease; onSave: (l: Lease) => boolean; onCancel?: () => void }) {
+  const { t } = useI18n();
+  const R = t.rent;
   const [d, setD] = useState(initial);
   const [err, setErr] = useState<string | null>(null);
   const set = (patch: Partial<Lease>) => setD((x) => ({ ...x, ...patch }));
@@ -43,59 +39,59 @@ function LeaseForm({ initial, onSave, onCancel }: { initial: Lease; onSave: (l: 
       className="lf"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!d.tenantNickname.trim() || !d.startDate || !d.trackFrom) return setErr("Add a nickname, a start date and the date you track rent from.");
-        if (d.endDate && d.endDate < d.startDate) return setErr("The end date is before the start date.");
+        if (!d.tenantNickname.trim() || !d.startDate || !d.trackFrom) return setErr(R.needBasics);
+        if (d.endDate && d.endDate < d.startDate) return setErr(R.endBeforeStart);
         setErr(null);
-        if (!onSave({ ...d, tenantNickname: d.tenantNickname.trim() })) setErr("That lease couldn't be saved. Check the amounts and dates.");
+        if (!onSave({ ...d, tenantNickname: d.tenantNickname.trim() })) setErr(R.leaseFailed);
       }}
     >
-      <p className="note full" style={{ margin: 0 }}>
-        Use a nickname like &ldquo;Unit A tenant&rdquo;. Don&apos;t enter names, phone numbers, emails or ID numbers: RentWise doesn&apos;t need them.
-      </p>
+      <p className="note full" style={{ margin: 0 }}>{R.nicknameNote}</p>
       <label className="fld full">
-        <span className="flabel">Tenant nickname</span>
+        <span className="flabel">{R.tenant}</span>
         <span className="inp">
           <input maxLength={40} value={d.tenantNickname} required onChange={(e) => set({ tenantNickname: e.target.value })} />
         </span>
       </label>
-      <DateField label="Lease start" value={d.startDate} required onChange={(v) => set({ startDate: v })} />
-      <DateField label="Lease end (optional)" value={d.endDate ?? ""} onChange={(v) => set({ endDate: v || null })} />
-      <DateField label="Track rent from" value={d.trackFrom} required onChange={(v) => set({ trackFrom: v })} help="Earlier months are never charged. You can set a past date." />
-      <NumberField def={{ label: "Monthly rent", kind: "money", suffix: "/mo", help: "", min: 1, max: 1_000_000 }} value={d.monthlyRent} onCommit={(v) => set({ monthlyRent: v })} />
-      <NumberField def={{ label: "Rent due on day", kind: "years", suffix: "of the month", help: "", min: 1, max: 28 }} value={d.dueDay} onCommit={(v) => set({ dueDay: v })} />
-      <NumberField def={{ label: "Grace period", kind: "years", suffix: "days", help: "", min: 0, max: 31 }} value={d.graceDays} onCommit={(v) => set({ graceDays: v })} />
+      <DateField label={R.start} value={d.startDate} required onChange={(v) => set({ startDate: v })} />
+      <DateField label={R.end} value={d.endDate ?? ""} onChange={(v) => set({ endDate: v || null })} />
+      <DateField label={R.trackFrom} value={d.trackFrom} required onChange={(v) => set({ trackFrom: v })} help={R.trackHelp} />
+      <NumberField def={{ label: R.monthlyRent, kind: "money", suffix: t.common.mo, help: "", min: 1, max: 1_000_000 }} value={d.monthlyRent} onCommit={(v) => set({ monthlyRent: v })} />
+      <NumberField def={{ label: R.dueDay, kind: "years", suffix: R.ofMonth, help: "", min: 1, max: 28 }} value={d.dueDay} onCommit={(v) => set({ dueDay: v })} />
+      <NumberField def={{ label: R.grace, kind: "years", suffix: R.days, help: "", min: 0, max: 31 }} value={d.graceDays} onCommit={(v) => set({ graceDays: v })} />
       <label className="fld">
-        <span className="flabel">Late fee</span>
+        <span className="flabel">{R.lateFee}</span>
         <span className="inp">
           <select
             value={feeKind}
             onChange={(e) => set({ lateFee: e.target.value === "none" ? null : e.target.value === "flat" ? { kind: "flat", amount: 5_000 } : { kind: "percent", amount: 0.05 } })}
           >
-            <option value="none">No late fee</option>
-            <option value="flat">Flat amount</option>
-            <option value="percent">Percent of rent</option>
+            <option value="none">{R.noFee}</option>
+            <option value="flat">{R.flat}</option>
+            <option value="percent">{R.percent}</option>
           </select>
         </span>
       </label>
       {d.lateFee?.kind === "flat" && (
-        <NumberField def={{ label: "Late fee amount", kind: "money", help: "", min: 0, max: 100_000 }} value={d.lateFee.amount} onCommit={(v) => set({ lateFee: { kind: "flat", amount: v } })} />
+        <NumberField def={{ label: R.feeAmount, kind: "money", help: "", min: 0, max: 100_000 }} value={d.lateFee.amount} onCommit={(v) => set({ lateFee: { kind: "flat", amount: v } })} />
       )}
       {d.lateFee?.kind === "percent" && (
-        <NumberField def={{ label: "Late fee", kind: "rate", suffix: "% of rent", help: "", min: 0, max: 50 }} value={d.lateFee.amount} onCommit={(v) => set({ lateFee: { kind: "percent", amount: v } })} />
+        <NumberField def={{ label: R.lateFee, kind: "rate", suffix: t.fields.vacancyPct.suffix, help: "", min: 0, max: 50 }} value={d.lateFee.amount} onCommit={(v) => set({ lateFee: { kind: "percent", amount: v } })} />
       )}
-      <NumberField def={{ label: "Security deposit", kind: "money", help: "", min: 0, max: 1_000_000 }} value={d.depositAmount} onCommit={(v) => set({ depositAmount: v })} />
-      <DateField label="Deposit received on (optional)" value={d.depositReceivedDate ?? ""} onChange={(v) => set({ depositReceivedDate: v || null })} />
-      <p className="note full" style={{ margin: 0 }}>Late-fee rules vary by state and city; check yours. A fee here is only a ledger entry: nothing is charged to anyone.</p>
+      <NumberField def={{ label: R.deposit, kind: "money", help: "", min: 0, max: 1_000_000 }} value={d.depositAmount} onCommit={(v) => set({ depositAmount: v })} />
+      <DateField label={R.depositOn} value={d.depositReceivedDate ?? ""} onChange={(v) => set({ depositReceivedDate: v || null })} />
+      <p className="note full" style={{ margin: 0 }}>{R.feeRule}</p>
       {err && <p role="alert" className="ferr full" style={{ margin: 0 }}>{err}</p>}
       <div className="full" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <button type="submit" className="btn btn-primary">Save lease</button>
-        {onCancel && <button type="button" className="btn btn-quiet" onClick={onCancel}>Cancel</button>}
+        <button type="submit" className="btn btn-primary">{R.saveLease}</button>
+        {onCancel && <button type="button" className="btn btn-quiet" onClick={onCancel}>{t.common.cancel}</button>}
       </div>
     </form>
   );
 }
 
 function PaymentForm({ lease, months, today, onSave }: { lease: Lease; months: string[]; today: IsoDate; onSave: (p: { amount: number; date: IsoDate; forMonth: string }) => boolean }) {
+  const { t, month: monthLabel } = useI18n();
+  const R = t.rent;
   const [amount, setAmount] = useState(lease.monthlyRent);
   const [date, setDate] = useState(today);
   const [forMonth, setForMonth] = useState(months[0] ?? monthOf(today));
@@ -105,24 +101,24 @@ function PaymentForm({ lease, months, today, onSave }: { lease: Lease; months: s
       className="lf"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!date || date > today) return setErr("Use a date that has already happened.");
-        setErr(onSave({ amount, date, forMonth }) ? null : "That payment couldn't be saved.");
+        if (!date || date > today) return setErr(R.futureDate);
+        setErr(onSave({ amount, date, forMonth }) ? null : R.paymentFailed);
       }}
     >
-      <NumberField def={{ label: "Amount received", kind: "money", help: "", min: 0.01, max: 1_000_000 }} value={amount} onCommit={setAmount} />
-      <DateField label="Received on" value={date} required onChange={setDate} />
+      <NumberField def={{ label: R.amountReceived, kind: "money", help: "", min: 0.01, max: 1_000_000 }} value={amount} onCommit={setAmount} />
+      <DateField label={R.receivedOn} value={date} required onChange={setDate} />
       <label className="fld">
-        <span className="flabel">For</span>
+        <span className="flabel">{R.for}</span>
         <span className="inp">
           <select value={forMonth} onChange={(e) => setForMonth(e.target.value)}>
-            {months.map((m) => <option key={m} value={m}>{monthLabel(m)} rent</option>)}
+            {months.map((m) => <option key={m} value={m}>{R.monthRent(monthLabel(m))}</option>)}
           </select>
         </span>
       </label>
       <div style={{ alignSelf: "end" }}>
-        <button type="submit" className="btn btn-primary">Record payment</button>
+        <button type="submit" className="btn btn-primary">{R.recordPayment}</button>
       </div>
-      <p className="note full" style={{ margin: 0 }}>Payments always settle the oldest rent first, then any late fee. Security deposits aren&apos;t rent: record them on the lease.</p>
+      <p className="note full" style={{ margin: 0 }}>{R.paymentOrder}</p>
       {err && <p role="alert" className="ferr full" style={{ margin: 0 }}>{err}</p>}
     </form>
   );
@@ -130,6 +126,9 @@ function PaymentForm({ lease, months, today, onSave }: { lease: Lease; months: s
 
 /** L1 + L2: the lease, its rent roll by month, what's owed now, and quick payment entry. */
 export function RentTab({ ledger, setLedger, today, plannedRent }: { ledger: Ledger; setLedger: SetLedger; today: IsoDate; plannedRent: number }) {
+  const i = useI18n();
+  const { t, money: usd, month: monthLabel } = i;
+  const R = t.rent;
   const [editing, setEditing] = useState<string | null>(ledger.leases.length ? null : "new");
   const blank: Lease = {
     id: "", tenantNickname: "", startDate: today, endDate: null, trackFrom: dayOf(monthOf(today), 1), monthlyRent: plannedRent, dueDay: 1, graceDays: 5,
@@ -145,14 +144,14 @@ export function RentTab({ ledger, setLedger, today, plannedRent }: { ledger: Led
     <div className="ltab">
       {!ledger.leases.length && editing !== "new" && (
         <section className="card">
-          <h2 className="disp" style={{ margin: 0, fontSize: 22 }}>No lease yet</h2>
-          <p style={{ margin: "8px 0 16px", color: "var(--ink-2)" }}>Add the lease to track rent by month: what was paid, what&apos;s late and what&apos;s owed. Every payment flows into plan vs. actual.</p>
-          <button type="button" className="btn btn-primary" onClick={() => setEditing("new")}>Add a lease</button>
+          <h2 className="disp" style={{ margin: 0, fontSize: 22 }}>{R.noLease}</h2>
+          <p style={{ margin: "8px 0 16px", color: "var(--ink-2)" }}>{R.noLeaseText}</p>
+          <button type="button" className="btn btn-primary" onClick={() => setEditing("new")}>{R.addLease}</button>
         </section>
       )}
       {editing === "new" && (
         <section className="card" aria-labelledby="nl-h">
-          <h2 className="disp" id="nl-h" style={{ margin: "0 0 12px", fontSize: 22 }}>Add a lease</h2>
+          <h2 className="disp" id="nl-h" style={{ margin: "0 0 12px", fontSize: 22 }}>{R.addLease}</h2>
           <LeaseForm initial={blank} onSave={saveLease} onCancel={ledger.leases.length ? () => setEditing(null) : undefined} />
         </section>
       )}
@@ -167,7 +166,7 @@ export function RentTab({ ledger, setLedger, today, plannedRent }: { ledger: Led
           <div key={lease.id} className="ltab">
             {editing === lease.id ? (
               <section className="card">
-                <h2 className="disp" style={{ margin: "0 0 12px", fontSize: 22 }}>Edit lease</h2>
+                <h2 className="disp" style={{ margin: "0 0 12px", fontSize: 22 }}>{R.editLease}</h2>
                 <LeaseForm initial={lease} onSave={saveLease} onCancel={() => setEditing(null)} />
               </section>
             ) : (
@@ -175,63 +174,63 @@ export function RentTab({ ledger, setLedger, today, plannedRent }: { ledger: Led
                 <div className="lch">
                   <h2 className="disp" id={`lc-${lease.id}`} style={{ margin: 0, fontSize: 22 }}>{lease.tenantNickname}</h2>
                   <span>
-                    <button type="button" className="lnk" onClick={() => setEditing(lease.id)}>Edit lease</button>
+                    <button type="button" className="lnk" onClick={() => setEditing(lease.id)}>{R.editLease}</button>
                     <button
                       type="button"
                       className="lnk danger"
-                      onClick={() => confirm(`Delete this lease and its ${payments.length} payment(s)? This can't be undone.`) &&
+                      onClick={() => confirm(R.deleteLease(payments.length)) &&
                         setLedger((x) => ({ ...x, leases: x.leases.filter((l) => l.id !== lease.id), payments: x.payments.filter((p) => p.leaseId !== lease.id), waivers: x.waivers.filter((w) => w.leaseId !== lease.id), depositEvents: x.depositEvents.filter((e) => e.leaseId !== lease.id) }))}
                     >
-                      Delete
+                      {t.common.delete}
                     </button>
                   </span>
                 </div>
                 <dl className="ldl num">
-                  <div><dt>Rent</dt><dd>{usd(lease.monthlyRent, { exact: true })}/mo</dd></div>
-                  <div><dt>Due</dt><dd>{ordinal(lease.dueDay)}, {lease.graceDays} days&apos; grace</dd></div>
-                  <div><dt>Late fee</dt><dd>{feeText(lease)}</dd></div>
-                  <div><dt>Lease</dt><dd>{lease.startDate} to {lease.endDate ?? "ongoing"}</dd></div>
-                  <div><dt>Owed now</dt><dd className={s.receivable > 0 ? "neg" : ""}>{usd(s.receivable, { exact: true })}</dd></div>
-                  {s.creditBalance > 0 && <div><dt>Tenant credit</dt><dd>{usd(s.creditBalance, { exact: true })}</dd></div>}
-                  <div><dt>Deposit held</dt><dd>{usd(s.depositHeld, { exact: true })} <small>held for the tenant, not income</small></dd></div>
+                  <div><dt>{R.rent}</dt><dd>{usd(lease.monthlyRent, { exact: true })}{t.common.mo}</dd></div>
+                  <div><dt>{R.due}</dt><dd>{R.dueText(R.day(lease.dueDay), lease.graceDays)}</dd></div>
+                  <div><dt>{R.lateFee}</dt><dd>{feeText(lease, i)}</dd></div>
+                  <div><dt>{R.lease}</dt><dd>{R.leaseSpan(lease.startDate, lease.endDate)}</dd></div>
+                  <div><dt>{R.owed}</dt><dd className={s.receivable > 0 ? "neg" : ""}>{usd(s.receivable, { exact: true })}</dd></div>
+                  {s.creditBalance > 0 && <div><dt>{R.credit}</dt><dd>{usd(s.creditBalance, { exact: true })}</dd></div>}
+                  <div><dt>{R.held}</dt><dd>{usd(s.depositHeld, { exact: true })} <small>{R.heldNote}</small></dd></div>
                 </dl>
               </section>
             )}
 
             <section className="card" aria-labelledby={`rr-${lease.id}`}>
-              <h2 className="disp" id={`rr-${lease.id}`} style={{ margin: 0, fontSize: 22 }}>Rent by month</h2>
+              <h2 className="disp" id={`rr-${lease.id}`} style={{ margin: 0, fontSize: 22 }}>{R.byMonth}</h2>
               {s.months.length ? (
                 <table className="ct num">
-                  <caption className="sr-only">Rent status by month for {lease.tenantNickname}</caption>
-                  <thead><tr><th scope="col">Month</th><th scope="col">Status</th><th scope="col">Paid</th><th scope="col">Late fee</th></tr></thead>
+                  <caption className="sr-only">{R.byMonthCaption(lease.tenantNickname)}</caption>
+                  <thead><tr><th scope="col">{R.month}</th><th scope="col">{R.statusCol}</th><th scope="col">{R.paid}</th><th scope="col">{R.lateFee}</th></tr></thead>
                   <tbody>
                     {s.months.map((m) => (
                       <tr key={m.month}>
                         <th scope="row">{monthLabel(m.month)}</th>
-                        <td><Badge st={STATUS[m.status].st} label={STATUS[m.status].label} /></td>
-                        <td>{usd(m.paid, { exact: true })}<span className="opt"> of {usd(m.rent, { exact: true })}</span></td>
+                        <td><Badge st={STATUS[m.status]} label={R.status[m.status]} /></td>
+                        <td>{usd(m.paid, { exact: true })}<span className="opt">{R.of(usd(m.rent, { exact: true }))}</span></td>
                         <td>
                           {m.fee ? (
                             <span className="fee">
-                              {m.fee.waived ? <span className="mut">Waived</span> : <>{usd(m.fee.amount, { exact: true })}{m.fee.paid >= m.fee.amount ? " paid" : " owed"}</>}
+                              {m.fee.waived ? <span className="mut">{R.waived}</span> : <>{usd(m.fee.amount, { exact: true })}{m.fee.paid >= m.fee.amount ? R.feePaid : R.feeOwed}</>}
                               {m.fee.paid < m.fee.amount && (
-                                <button type="button" className="lnk" onClick={() => waive(m.month, !m.fee!.waived)}>{m.fee.waived ? "Undo" : "Waive"}</button>
+                                <button type="button" className="lnk" onClick={() => waive(m.month, !m.fee!.waived)}>{m.fee.waived ? R.undo : R.waive}</button>
                               )}
                             </span>
-                          ) : <span className="mut">None</span>}
+                          ) : <span className="mut">{t.common.none}</span>}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                <p style={{ margin: "8px 0 0", color: "var(--ink-2)" }}>No rent is due yet. The first rent falls on the {ordinal(lease.dueDay)} after {lease.trackFrom}.</p>
+                <p style={{ margin: "8px 0 0", color: "var(--ink-2)" }}>{R.noneDue(R.day(lease.dueDay), lease.trackFrom)}</p>
               )}
-              {feeFor(lease) > 0 && <p className="note" style={{ margin: "12px 0 0" }}>A month that is still short after the grace period gets one {usd(feeFor(lease), { exact: true })} fee. It counts as income only once it&apos;s paid. Late-fee rules vary by state and city; check yours.</p>}
+              {feeFor(lease) > 0 && <p className="note" style={{ margin: "12px 0 0" }}>{R.feeNote(usd(feeFor(lease), { exact: true }))}</p>}
             </section>
 
             <section className="card" aria-labelledby={`rp-${lease.id}`}>
-              <h2 className="disp" id={`rp-${lease.id}`} style={{ margin: "0 0 12px", fontSize: 22 }}>Record a payment</h2>
+              <h2 className="disp" id={`rp-${lease.id}`} style={{ margin: "0 0 12px", fontSize: 22 }}>{R.recordTitle}</h2>
               <PaymentForm
                 key={payments.length /* fresh defaults after each payment */}
                 lease={lease}
@@ -241,15 +240,15 @@ export function RentTab({ ledger, setLedger, today, plannedRent }: { ledger: Led
               />
               {payments.length > 0 && (
                 <table className="ct num">
-                  <caption className="sr-only">Payments recorded for {lease.tenantNickname}</caption>
-                  <thead><tr><th scope="col">Received</th><th scope="col">For</th><th scope="col">Amount</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+                  <caption className="sr-only">{R.paymentsCaption(lease.tenantNickname)}</caption>
+                  <thead><tr><th scope="col">{R.received}</th><th scope="col">{R.for}</th><th scope="col">{R.amount}</th><th scope="col"><span className="sr-only">{R.actions}</span></th></tr></thead>
                   <tbody>
                     {payments.map((p) => (
                       <tr key={p.id}>
                         <th scope="row">{p.date}</th>
                         <td>{monthLabel(p.forMonth)}</td>
                         <td>{usd(p.amount, { exact: true })}</td>
-                        <td><button type="button" className="lnk danger" onClick={() => confirm("Delete this payment?") && setLedger((x) => ({ ...x, payments: x.payments.filter((y) => y.id !== p.id) }))}>Delete</button></td>
+                        <td><button type="button" className="lnk danger" onClick={() => confirm(R.deletePayment) && setLedger((x) => ({ ...x, payments: x.payments.filter((y) => y.id !== p.id) }))}>{t.common.delete}</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -260,7 +259,7 @@ export function RentTab({ ledger, setLedger, today, plannedRent }: { ledger: Led
         );
       })}
       {ledger.leases.length > 0 && editing !== "new" && (
-        <button type="button" className="btn btn-quiet" style={{ alignSelf: "flex-start" }} onClick={() => setEditing("new")}>Add another lease</button>
+        <button type="button" className="btn btn-quiet" style={{ alignSelf: "flex-start" }} onClick={() => setEditing("new")}>{R.another}</button>
       )}
     </div>
   );

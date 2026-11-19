@@ -12,7 +12,7 @@ vi.stubGlobal("localStorage", {
 });
 
 const load = () => import("../../src/lib/storage");
-const KEY = "rentwise:v3";
+const KEY = "rentwise:kz:v1";
 const V1 = "rentwise:v1";
 const peek = (st: Awaited<ReturnType<typeof load>>) => {
   let v: AppState | undefined;
@@ -25,31 +25,31 @@ beforeEach(() => {
   vi.resetModules();
 });
 
-describe("migration from Phase 1 storage (v1 → v2)", () => {
-  it("moves a real production v1 state into deals[0] with nothing lost, and leaves v1 untouched", async () => {
+describe("the US version's data is left alone (KZ brief: never converted)", () => {
+  it("an old v1 state is not loaded, not migrated and not rewritten; the KZ store starts empty", async () => {
     const raw = JSON.stringify(fixture);
     mem.set(V1, raw);
-    const v = peek(await load());
-    expect(v.property).toEqual(fixture.property);
-    expect(v.isExample).toBe(fixture.isExample);
-    expect(v.plan).toEqual(fixture.plan);
-    expect(v.actuals).toEqual(fixture.actuals);
-    expect(v.scenarios).toEqual(fixture.scenarios);
-    expect(v.constraints).toEqual(fixture.constraints);
-    expect(v.deals).toHaveLength(1);
-    expect(v.activeId).toBe(v.deals[0].id);
-    expect(mem.get(V1)).toBe(raw); // a rollback to Phase 1 still finds its data
-    const v3 = JSON.parse(mem.get(KEY)!);
-    expect(v3.v).toBe(3);
-    expect(v3.deals[0].actuals).toEqual(fixture.actuals);
-    expect(v3.deals[0].ledger.monthModes).toEqual(fixture.actuals.map((a) => ({ month: a.month, mode: "manual" })));
+    const st = await load();
+    expect(peek(st).deals).toEqual([]);
+    expect(mem.get(V1)).toBe(raw);
+    expect(st.oldData()).toEqual({ [V1]: raw }); // offered as a download, byte for byte
+    st.setAppState((s) => ({ ...s, property: DEMO_PROPERTY }));
+    expect(mem.get(V1)).toBe(raw);
+    expect(JSON.parse(mem.get(KEY)!).deals).toHaveLength(1);
   });
 
-  it("keeps the same deal id across reloads once migrated", async () => {
-    mem.set(V1, JSON.stringify(fixture));
-    const a = peek(await load()).activeId;
-    vi.resetModules();
-    expect(peek(await load()).activeId).toBe(a);
+  it("migrateV1 still turns a real production v1 file into one deal with nothing lost (used by import)", async () => {
+    const { migrateV1 } = await load();
+    const v3 = migrateV1(fixture, "2026-11-15T00:00:00.000Z", "deal-1")!;
+    expect(v3.v).toBe(3);
+    expect(v3.deals[0].inputs).toEqual(fixture.property);
+    expect(v3.deals[0].isExample).toBe(fixture.isExample);
+    expect(v3.deals[0].plan).toEqual(fixture.plan);
+    expect(v3.deals[0].actuals).toEqual(fixture.actuals);
+    expect(v3.scenarios).toEqual(fixture.scenarios);
+    expect(v3.constraints).toEqual(fixture.constraints);
+    expect(v3.activeId).toBe("deal-1");
+    expect(v3.deals[0].ledger.monthModes).toEqual(fixture.actuals.map((a) => ({ month: a.month, mode: "manual" })));
   });
 
   it("migrates v1 data written by the Phase 2 build (projection, growth deltas, new targets)", async () => {
@@ -82,13 +82,13 @@ describe("migration from Phase 1 storage (v1 → v2)", () => {
     expect(mem.get(V1)).toBe("{broken");
   });
 
-  it("clear my data removes every version", async () => {
+  it("clear my data removes this version's data only; the old version's keys stay", async () => {
     mem.set(V1, JSON.stringify(fixture));
     mem.set("rentwise:v2", "{}");
     const st = await load();
-    st.getStorageStatus();
+    st.setAppState((s) => ({ ...s, property: DEMO_PROPERTY }));
     expect(st.clearAppData()).toBe(true);
-    expect([...mem.keys()]).toEqual([]);
+    expect([...mem.keys()].sort()).toEqual([V1, "rentwise:v2"].sort());
   });
 });
 
@@ -114,7 +114,7 @@ describe("deals: open, rename, duplicate, delete, import", () => {
     const [a, b] = view.deals;
     expect(st.openDeal(a.id)).toBe(true);
     expect(st.renameDeal(a.id, "  Maple St  ")).toBe(true);
-    expect(st.duplicateDeal(b.id)).toBe(true);
+    expect(st.duplicateDeal(b.id, (n) => `${n} (copy)`)).toBe(true);
     let v = peek(st);
     expect(v.property!.nickname).toBe("Maple St");
     expect(v.deals.map((d) => d.inputs.nickname)).toEqual(["Maple St", "B", "B (copy)"]);
@@ -130,8 +130,8 @@ describe("deals: open, rename, duplicate, delete, import", () => {
     const { st } = await two();
     expect(st.importAppData(JSON.stringify(fixture))).toBe(1);
     expect(st.importAppData(mem.get(KEY)!)).toBe(3); // a v2 export of this same browser: ids are made unique
-    expect(st.importAppData("{nope")).toBe("That file isn't valid JSON.");
-    expect(st.importAppData(JSON.stringify({ v: 2, deals: [{ id: "x" }] }))).toMatch(/isn't a RentWise export/);
+    expect(st.importAppData("{nope")).toBe("json");
+    expect(st.importAppData(JSON.stringify({ v: 2, deals: [{ id: "x" }] }))).toBe("notExport");
     const saved = JSON.parse(mem.get(KEY)!);
     expect(saved.deals).toHaveLength(6);
     expect(new Set(saved.deals.map((d: { id: string }) => d.id)).size).toBe(6);
@@ -166,13 +166,11 @@ describe("branding is kept by every kind of edit", () => {
   });
 });
 
-describe("migration from Phase 2 storage (v2 → v3)", () => {
-  it("a real v2 state gains empty ledgers, its monthly totals become manual months, and v2 is left untouched", async () => {
+describe("Phase 2 files (v2 → v3), for import", () => {
+  it("a real v2 state gains empty ledgers and its monthly totals become manual months", async () => {
     const v2 = (await import("../fixtures/v2-state.json")).default;
-    const raw = JSON.stringify(v2);
-    mem.set("rentwise:v2", raw);
-    const st = await load();
-    const v = peek(st);
+    const { migrateV2 } = await load();
+    const v = migrateV2(v2)!;
     expect(v.deals.map((d) => d.id)).toEqual(v2.deals.map((d) => d.id));
     expect(v.deals.map((d) => d.actuals)).toEqual(v2.deals.map((d) => d.actuals));
     expect(v.deals.map((d) => d.plan)).toEqual(v2.deals.map((d) => d.plan));
@@ -180,17 +178,17 @@ describe("migration from Phase 2 storage (v2 → v3)", () => {
     expect(v.constraints).toEqual(v2.constraints);
     expect(v.deals[0].ledger.monthModes).toEqual(v2.deals[0].actuals.map((a) => ({ month: a.month, mode: "manual" })));
     expect(v.deals[0].ledger.payments).toEqual([]);
-    expect(mem.get("rentwise:v2")).toBe(raw);
-    expect(JSON.parse(mem.get(KEY)!).v).toBe(3);
+    expect(v.v).toBe(3);
   });
-  it("v2 wins over v1 when both exist, and imports accept v1, v2 and v3 files", async () => {
+  it("old v2 and v1 data in the browser is not loaded, and imports accept v1, v2 and v3 files", async () => {
     const v2 = (await import("../fixtures/v2-state.json")).default;
     mem.set("rentwise:v2", JSON.stringify(v2));
     mem.set(V1, JSON.stringify(fixture));
     const st = await load();
-    expect(peek(st).deals).toHaveLength(v2.deals.length);
+    expect(peek(st).deals).toEqual([]);
     expect(st.parseAnyVersion(v2)!.v).toBe(3);
     expect(st.parseAnyVersion(fixture)!.v).toBe(3);
+    expect(st.importAppData(JSON.stringify(v2))).toBe(v2.deals.length);
     expect(st.parseAnyVersion(JSON.parse(mem.get(KEY)!))!.deals).toHaveLength(v2.deals.length);
   });
   it("the ledger survives page edits and a reload", async () => {

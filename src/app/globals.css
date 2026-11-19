@@ -211,6 +211,29 @@
   font-size: 14px;
   color: var(--muted);
 }
+.lang {
+  flex: none;
+  display: flex;
+  gap: 2px;
+}
+.lang a {
+  min-width: 32px;
+  padding: 6px 6px;
+  border-radius: 6px;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.lang a:hover {
+  background: var(--sunk);
+  color: var(--ink);
+}
+.lang a[aria-current="true"] {
+  background: var(--brand-tint);
+  color: var(--brand);
+}
 
 /* ---------- Buttons, tags, badges ---------- */
 .btn {
@@ -665,6 +688,9 @@ details.x[open] .xb {
   .top-note {
     display: none;
   }
+  .lang {
+    margin-left: auto;
+  }
   .nav {
     scrollbar-width: none;
   }
@@ -683,7 +709,7 @@ details.x[open] .xb {
 }
 /* The logo already links home, so the Home tab is the one to drop when four tabs don't fit. */
 @media (max-width: 520px) {
-  .nav a[href="/"] {
+  .nav a.home {
     display: none;
   }
   .top {

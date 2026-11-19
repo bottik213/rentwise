@@ -9,8 +9,11 @@ export type SourceCategory = ActualCategory | "capex";
 /** One dated entry behind a derived actual, for the variance drill-down. */
 export interface SourceRef {
   kind: "rent" | "fee" | "deposit" | "expense";
+  /** What the UI says about a rent, fee or deposit entry; expenses show `label` as typed. */
+  what?: "rent" | "rentCredit" | "fee" | "depositRent" | "depositDamages";
   id: string;
   date: IsoDate;
+  /** The tenant nickname for rent, fee and deposit entries; the item, vendor and note for an expense (may be empty). */
   label: string;
   amount: Cents;
 }
@@ -68,19 +71,19 @@ export function combinedActuals(manual: ActualMonth[], ledger: Ledger, today: Is
     for (const c of s.credits) {
       const m = monthOf(c.date);
       // Cash basis: money counts on the day it arrives. A deposit applied to rent is other income (it was held).
-      if (c.kind === "deposit") add(m, "otherIncome", { kind: "deposit", id: c.id, date: c.date, label: `Deposit applied to rent, ${s.lease.tenantNickname}`, amount: c.amount });
+      if (c.kind === "deposit") add(m, "otherIncome", { kind: "deposit", what: "depositRent", id: c.id, date: c.date, label: s.lease.tenantNickname, amount: c.amount });
       else {
-        add(m, "rentReceived", { kind: "rent", id: c.id, date: c.date, label: `Rent, ${s.lease.tenantNickname}${c.toCredit ? " (includes credit)" : ""}`, amount: c.toRent + c.toCredit });
-        add(m, "otherIncome", { kind: "fee", id: c.id, date: c.date, label: `Late fee, ${s.lease.tenantNickname}`, amount: c.toFee });
+        add(m, "rentReceived", { kind: "rent", what: c.toCredit ? "rentCredit" : "rent", id: c.id, date: c.date, label: s.lease.tenantNickname, amount: c.toRent + c.toCredit });
+        add(m, "otherIncome", { kind: "fee", what: "fee", id: c.id, date: c.date, label: s.lease.tenantNickname, amount: c.toFee });
       }
     }
   }
   for (const s of settlements) {
-    for (const d of s.damages) add(monthOf(d.date), "otherIncome", { kind: "deposit", id: d.id, date: d.date, label: `Deposit applied to damages, ${s.lease.tenantNickname}`, amount: d.amount });
+    for (const d of s.damages) add(monthOf(d.date), "otherIncome", { kind: "deposit", id: d.id, date: d.date, what: "depositDamages", label: s.lease.tenantNickname, amount: d.amount });
   }
   const titles = new Map(ledger.maintenance.map((m) => [m.id, m.title]));
   for (const e of ledger.expenses.filter((e) => e.date <= today)) {
-    const label = [e.maintenanceId ? titles.get(e.maintenanceId) : null, e.vendor, e.note].filter(Boolean).join(" · ") || "Expense";
+    const label = [e.maintenanceId ? titles.get(e.maintenanceId) : null, e.vendor, e.note].filter(Boolean).join(" · ");
     add(monthOf(e.date), e.category, { kind: "expense", id: e.id, date: e.date, label, amount: e.amount });
   }
 

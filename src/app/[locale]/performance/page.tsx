@@ -10,86 +10,87 @@ import { NumberField } from "@/components/forms/NumberField";
 import { Arrow, Badge, Chevron, Logo } from "@/components/Icons";
 import { PageSkeleton } from "@/components/results/PageSkeleton";
 import { TryExampleButton } from "@/components/TryExampleButton";
-import { CATEGORY_LABEL, explainVariance } from "@/lib/explain";
+import type { I18n } from "@/i18n";
+import { useI18n } from "@/i18n/client";
+import { explainVariance } from "@/lib/explain";
 import { underwrite } from "@/lib/finance/underwriting";
 import { monthlyForecast, variance } from "@/lib/finance/variance";
 import { ACTUAL_CATEGORIES, type ActualMonth, type Cents, type Underwriting, type VarianceContributor } from "@/lib/finance/types";
-import { monthLabel, usd } from "@/lib/format";
 import { ExpensesTab } from "@/components/ledger/ExpensesTab";
 import { RentTab } from "@/components/ledger/RentTab";
 import { localToday } from "@/lib/ledger/dates";
 import { missingBills } from "@/lib/ledger/bills";
-import { combinedActuals } from "@/lib/ledger/to-actuals";
+import { combinedActuals, type SourceRef } from "@/lib/ledger/to-actuals";
 import type { Ledger, MonthMode } from "@/lib/ledger/types";
 import { setAppState, useAppState } from "@/lib/storage";
 import { ActualMonthSchema } from "@/lib/validation";
 import "./performance.css";
 
 const FIELD_KEYS = [...ACTUAL_CATEGORIES, "capex"] as const;
-const HELP: Partial<Record<(typeof FIELD_KEYS)[number], string>> = {
-  rentReceived: "Rent actually collected. Security deposits are not income; leave them out.",
-  capex: "Big replacements (roof, HVAC). Tracked against your reserve, not cash flow.",
-};
 const INCOME = new Set(["rentReceived", "otherIncome"]);
 const nextMonth = (m: string) => {
   const [y, mo] = m.split("-").map(Number);
   return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
 };
-const longMonth = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-const lc = (s: string) => (/^[A-Z]{2}/.test(s) ? s : s[0].toLowerCase() + s.slice(1));
-const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+// Lower-case a label inside a sentence, but keep abbreviations like "HOA" or "ОСИ" as they are.
+const lc = (s: string) => (/^\p{Lu}{2}/u.test(s) ? s : s[0].toLocaleLowerCase() + s.slice(1));
+const cap = (s: string) => s[0].toLocaleUpperCase() + s.slice(1);
 
 const movers = (cs: VarianceContributor[]) => cs.filter((c) => c.impact !== 0).sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
 
-/** "maintenance cost $120.00 more than planned" / "rent received was $32.61 lower than planned". */
-function phrase(c: VarianceContributor) {
-  const amt = usd(Math.abs(c.impact), { exact: true });
-  const label = lc(CATEGORY_LABEL[c.category]);
-  if (INCOME.has(c.category)) return `${label} was ${amt} ${c.impact < 0 ? "lower" : "higher"} than planned`;
-  return `${label} cost ${amt} ${c.impact < 0 ? "more" : "less"} than planned`;
+/** "maintenance cost ₸120.00 more than planned" / "rent received was ₸32.61 lower than planned". */
+function phrase(c: VarianceContributor, { t, money }: I18n) {
+  const amt = money(Math.abs(c.impact), { exact: true });
+  const label = lc(t.cat[c.category]);
+  return INCOME.has(c.category) ? t.perf.lowerHigher(label, amt, c.impact < 0) : t.perf.moreLess(label, amt, c.impact < 0);
 }
 
-function monthSentence(u: Underwriting, m: ActualMonth) {
+function monthSentence(u: Underwriting, m: ActualMonth, i: I18n) {
   const ms = movers(variance(u, [m]).contributors);
-  if (!ms.length) return "Everything matched the plan.";
-  const rest = ms.length > 1 ? ` ${ms.length - 1} other line${ms.length > 2 ? "s" : ""} moved too.` : "";
-  return `${cap(phrase(ms[0]))}.${rest}`;
+  if (!ms.length) return i.t.perf.matched;
+  const rest = ms.length > 1 ? i.t.perf.others(ms.length - 1) : "";
+  return `${cap(phrase(ms[0], i))}.${rest}`;
 }
 
-const TABS = [["overview", "Overview"], ["rent", "Rent"], ["expenses", "Expenses & maintenance"]] as const;
+const refLabel = (r: SourceRef, { t }: I18n) => (r.what ? t.perf.src[r.what](r.label) : r.label || t.perf.src.expense);
+
+const TABS = ["overview", "rent", "expenses"] as const;
 /** Set one month's mode explicitly, replacing any earlier choice for it. */
 const withMode = (modes: MonthMode[], month: string, mode: MonthMode["mode"]) => [...modes.filter((m) => m.month !== month), { month, mode }];
-type Tab = (typeof TABS)[number][0];
-
-const judge = (t: number) => (t < 0 ? { st: "bad" as const, label: "Below plan" } : { st: "good" as const, label: t > 0 ? "Above plan" : "On plan" });
+type Tab = (typeof TABS)[number];
 
 export default function PerformancePage() {
   const s = useAppState();
+  const i = useI18n();
+  const { t, money: usd, month: monthLabel, longMonth, monthName, path } = i;
+  const P = t.perf;
   const [draft, setDraft] = useState<ActualMonth | null>(null);
   const [formRevision, setFormRevision] = useState(0);
   const [tab, setTab] = useState<Tab>("overview");
   const [open, setOpen] = useState<string | null>(null); // the contributor whose entries are expanded
   if (!s) return <PageSkeleton />;
 
+  const judge = (x: number) => (x < 0 ? { st: "bad" as const, label: P.belowPlan } : { st: "good" as const, label: x > 0 ? P.abovePlan : P.onPlan });
+
   if (!s.plan) {
     return (
       <div className="pg-actuals">
         <div className="es">
           <figure>
-            <Image src={porch} priority alt="A red-brick Victorian house with a white wooden front porch and a bicycle by the steps, on a sunny Toronto street" sizes="(max-width: 899px) 100vw, 540px" />
-            <figcaption>Beverly Street, Toronto. Photo: Bill Badzo, public domain mark.</figcaption>
+            <Image src={porch} priority alt={P.emptyAlt} sizes="(max-width: 899px) 100vw, 540px" />
+            <figcaption>{P.emptyCredit}</figcaption>
           </figure>
           <div>
-            <h1 className="disp">No owned property yet</h1>
-            <p className="l">Once you buy, this is where you&apos;ll see how the property is really doing. Record what you collect and pay each month, and RentWise compares it with the plan you bought on.</p>
+            <h1 className="disp">{P.emptyTitle}</h1>
+            <p className="l">{P.emptyText}</p>
             <ol className="steps">
-              <li>Analyze a property, then choose &ldquo;Mark as owned&rdquo; to lock the plan you buy on.</li>
-              <li>Each month, enter the rent you collected and the bills you paid.</li>
-              <li>See which costs moved cash flow away from plan, to the cent.</li>
+              {P.emptySteps.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
             </ol>
             <div className="ctas">
-              <Link href={s.property ? "/results" : s.deals.length ? "/compare" : "/analyze"} className="btn btn-primary btn-lg">
-                {s.property ? "Go to the analysis" : s.deals.length ? "Your properties" : "Analyze a property"} <Arrow size={18} />
+              <Link href={path(s.property ? "/results" : s.deals.length ? "/compare" : "/analyze")} className="btn btn-primary btn-lg">
+                {s.property ? P.goAnalysis : s.deals.length ? t.common.yourProperties : t.common.analyzeProperty} <Arrow size={18} />
               </Link>
               {!s.property && <TryExampleButton className="btn btn-quiet btn-lg" />}
             </div>
@@ -108,7 +109,7 @@ export default function PerformancePage() {
   const actuals = combined.months;
   const setLedger = (fn: (l: Ledger) => Ledger) => setAppState((x) => ({ ...x, ledger: fn(x.ledger) }));
   const ledgerMonths = Object.keys(combined.mode).filter((m) => combined.mode[m] === "ledger");
-  const bills = missingBills(ledgerMonths, s.ledger.expenses, forecast);
+  const bills = missingBills(ledgerMonths, s.ledger.expenses, forecast, P.usualBill);
   const billMonths = [...new Set(bills.map((b) => b.date.slice(0, 7)))];
   const blank = (month: string): ActualMonth => ({ month, ...forecast, capex: 0 });
   const upcoming = actuals.length ? nextMonth(actuals[actuals.length - 1].month) : plan.lockedAt.slice(0, 7);
@@ -125,7 +126,7 @@ export default function PerformancePage() {
   const previous = actuals.slice(-3, -1).reverse();
   const planCf = u.cashFlowBeforeCapex;
   const points = actuals.slice(-12).map((a) => ({ month: a.month, actual: variance(u, [a]).actualCashFlowBeforeCapex }));
-  const name = (s.isExample ? plan.inputs.nickname?.replace(/\s*\(synthetic\)$/i, "") : plan.inputs.nickname) || "Your property";
+  const name = s.isExample ? t.common.exampleName : plan.inputs.nickname || t.common.yourProperty;
 
   const save = () => {
     if (!valid) return;
@@ -138,7 +139,7 @@ export default function PerformancePage() {
     setDraft(null);
   };
   const remove = (month: string) => {
-    if (!confirm(`Delete ${monthLabel(month)}?`)) return;
+    if (!confirm(P.deleteConfirm(monthLabel(month)))) return;
     setAppState((x) => ({ ...x, actuals: x.actuals.filter((a) => a.month !== month), ledger: { ...x.ledger, monthModes: x.ledger.monthModes.filter((m) => m.month !== month) } }));
   };
   // Switching never deletes anything: manual totals stay stored, and ledger entries stay recorded.
@@ -151,35 +152,36 @@ export default function PerformancePage() {
   const toLedger = (month: string) => setLedger((l) => ({ ...l, monthModes: withMode(l.monthModes, month, "ledger") }));
   const hasEntries = new Set([...s.ledger.payments, ...s.ledger.expenses, ...s.ledger.depositEvents].filter((e) => e.date <= today).map((e) => e.date.slice(0, 7)));
   const latestSources = latest ? combined.sources[latest.month] : undefined;
+  const sign = (x: number) => (x < 0 ? "neg" : x > 0 ? "pos" : "");
 
   return (
     <div className="pg-actuals">
       <div className="wrap">
         <header className="ph">
           {s.isExample ? (
-            <Image className="thumb" src={duplex} alt="Two-story side-by-side duplex with a shared front porch" width={64} height={64} />
+            <Image className="thumb" src={duplex} alt={P.thumbAlt} width={64} height={64} />
           ) : (
             <span className="thumb" aria-hidden>
               <Logo />
             </span>
           )}
           <div className="txt">
-            <h1 className="disp">{name}, plan vs. actual</h1>
+            <h1 className="disp">{P.title(name)}</h1>
             <p className="num">
-              Plan locked {new Date(plan.lockedAt).toLocaleDateString("en-US", { dateStyle: "medium" })} · {actuals.length} month{actuals.length === 1 ? "" : "s"} recorded
-              {s.isExample && <> · <span className="tag">Synthetic example</span></>} · Later edits to the analysis don&apos;t change the plan.{" "}
-              <Link href="/results">Back to analysis</Link>
+              {P.locked(i.date(plan.lockedAt), actuals.length)}
+              {s.isExample && <> · <span className="tag">{t.common.synthetic}</span></>} · {P.laterEdits}{" "}
+              <Link href={path("/results")}>{P.back}</Link>
             </p>
           </div>
           <a href="#record" className="btn btn-primary" onClick={() => setTab("overview")}>
-            Record {longMonth(upcoming).split(" ")[0]} <Arrow />
+            {P.record(monthName(upcoming))} <Arrow />
           </a>
         </header>
 
-        <div className="tabs" role="tablist" aria-label="Owned property">
-          {TABS.map(([k, label]) => (
+        <div className="tabs" role="tablist" aria-label={P.tabsLabel}>
+          {TABS.map((k) => (
             <button key={k} type="button" role="tab" id={`tab-${k}`} aria-selected={tab === k} aria-controls={`panel-${k}`} onClick={() => setTab(k)}>
-              {label}
+              {P.tabs[k]}
             </button>
           ))}
         </div>
@@ -201,17 +203,15 @@ export default function PerformancePage() {
         {bills.length > 0 && (
           <section className="card bills" aria-labelledby="bills-h">
             <p id="bills-h" style={{ margin: 0, fontWeight: 600 }}>
-              {bills.length} usual bill{bills.length === 1 ? " isn't" : "s aren't"} recorded for {billMonths.map(monthLabel).join(", ")}
+              {P.bills(bills.length, billMonths.map(monthLabel).join(", "))}
             </p>
-            <p style={{ margin: 0, color: "var(--ink-2)" }}>
-              Months built from your ledger count only what you record, so a month without its mortgage, tax or insurance looks better than it really was.
-            </p>
+            <p style={{ margin: 0, color: "var(--ink-2)" }}>{P.billsWhy}</p>
             <div>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => setLedger((x) => ({ ...x, expenses: [...x.expenses, ...bills.map((b) => ({ ...b, id: crypto.randomUUID() }))] }))}>
-                Add them at the planned amounts
+                {P.billsAdd}
               </button>
             </div>
-            <p className="note" style={{ margin: 0 }}>Each one is a dated expense you can change or delete later if the real bill differed.</p>
+            <p className="note" style={{ margin: 0 }}>{P.billsNote}</p>
           </section>
         )}
         {rl && latest ? (
@@ -224,62 +224,60 @@ export default function PerformancePage() {
                 </div>
                 <p className="big">
                   {rl.totalVariance === 0 ? (
-                    "Cash flow matched the plan this month."
+                    P.matchedMonth
                   ) : (
                     <>
-                      Cash flow was <b className="num">{usd(Math.abs(rl.totalVariance))}</b> {rl.totalVariance < 0 ? "below" : "above"} plan this month
-                      {latestMovers.length ? <>, mostly because {phrase(latestMovers[0])}.</> : "."}
+                      {P.wasPre}
+                      <b className="num">{usd(Math.abs(rl.totalVariance))}</b>
+                      {P.wasPost(rl.totalVariance < 0)}
+                      {latestMovers.length ? P.mostly(phrase(latestMovers[0], i)) : "."}
                     </>
                   )}
                 </p>
                 <dl className="num">
                   <div>
-                    <dt>Planned</dt>
+                    <dt>{P.planned}</dt>
                     <dd>{usd(rl.forecastCashFlowBeforeCapex, { exact: true })}</dd>
                   </div>
                   <div>
-                    <dt>Actual</dt>
+                    <dt>{P.actual}</dt>
                     <dd>{usd(rl.actualCashFlowBeforeCapex, { exact: true })}</dd>
                   </div>
                   <div>
-                    <dt>Difference</dt>
-                    <dd className={rl.totalVariance < 0 ? "neg" : rl.totalVariance > 0 ? "pos" : ""}>{usd(rl.totalVariance, { exact: true, signed: true })}</dd>
+                    <dt>{P.difference}</dt>
+                    <dd className={sign(rl.totalVariance)}>{usd(rl.totalVariance, { exact: true, signed: true })}</dd>
                   </div>
                 </dl>
-                <p className="note" style={{ margin: 0 }}>
-                  Cash flow before CapEx. Big replacements are tracked against your reserve, not here. Rule-based explanation computed from your numbers. No AI involved.
-                </p>
+                <p className="note" style={{ margin: 0 }}>{P.hlNote}</p>
               </section>
               <div className="side">
                 {previous.map((m) => {
-                  const t = variance(u, [m]).totalVariance;
+                  const x = variance(u, [m]).totalVariance;
                   return (
                     <div key={m.month} className="vc">
                       <div className="m">
                         <span>{longMonth(m.month)}</span>
-                        <span className={`num ${t < 0 ? "neg" : t > 0 ? "pos" : ""}`}>{usd(t, { exact: true, signed: true })}</span>
+                        <span className={`num ${sign(x)}`}>{usd(x, { exact: true, signed: true })}</span>
                       </div>
-                      <p>{monthSentence(u, m)}</p>
+                      <p>{monthSentence(u, m, i)}</p>
                     </div>
                   );
                 })}
                 {actuals.length > 1 && (
                   <div className="vc">
                     <div className="m">
-                      <span>Since you bought</span>
-                      <span className={`num ${all.totalVariance < 0 ? "neg" : all.totalVariance > 0 ? "pos" : ""}`}>{usd(all.totalVariance, { exact: true, signed: true })}</span>
+                      <span>{P.since}</span>
+                      <span className={`num ${sign(all.totalVariance)}`}>{usd(all.totalVariance, { exact: true, signed: true })}</span>
                     </div>
-                    <p className="num">
-                      {all.months} months, {usd(all.actualCashFlowBeforeCapex, { exact: true })} actual against {usd(all.forecastCashFlowBeforeCapex, { exact: true })} planned.
-                    </p>
+                    <p className="num">{P.sinceText(all.months, usd(all.actualCashFlowBeforeCapex, { exact: true }), usd(all.forecastCashFlowBeforeCapex, { exact: true }))}</p>
                   </div>
                 )}
                 {actuals.length === 1 && (
                   <div className="vc">
                     <div className="m">
-                      <span>Your first month</span>
+                      <span>{P.first}</span>
                     </div>
-                    <p>Each month you add shows up in the chart below, so you can see a trend form.</p>
+                    <p>{P.firstText}</p>
                   </div>
                 )}
               </div>
@@ -288,9 +286,9 @@ export default function PerformancePage() {
             <section aria-labelledby="ch-h">
               <div className="shead">
                 <h2 className="disp" id="ch-h">
-                  Monthly cash flow, plan vs. actual
+                  {P.chTitle}
                 </h2>
-                <p>Bars are what really happened. The dashed line is the plan you bought on.</p>
+                <p>{P.chSub}</p>
               </div>
               <PlanVsActual points={points} plan={planCf} />
             </section>
@@ -298,18 +296,18 @@ export default function PerformancePage() {
             <div className="two">
               <section className="card" aria-labelledby="why-h">
                 <h2 className="disp" id="why-h">
-                  What pulled {longMonth(latest.month).split(" ")[0]} away from plan
+                  {P.whyTitle(monthName(latest.month))}
                 </h2>
-                <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 15 }}>Each line&apos;s effect on cash flow. Right is better than plan, left is worse.</p>
+                <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 15 }}>{P.whySub}</p>
                 <Contributors movers={latestMovers} total={rl.totalVariance} month={latest.month} />
                 <table className="ct num">
-                  <caption className="sr-only">Plan and actual by category for {longMonth(latest.month)}</caption>
+                  <caption className="sr-only">{P.tableCaption(longMonth(latest.month))}</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Category</th>
-                      <th scope="col">Plan</th>
-                      <th scope="col">Actual</th>
-                      <th scope="col">Effect on cash flow</th>
+                      <th scope="col">{P.category}</th>
+                      <th scope="col">{P.plan}</th>
+                      <th scope="col">{P.actual}</th>
+                      <th scope="col">{P.effect}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -323,10 +321,10 @@ export default function PerformancePage() {
                               {refs.length ? (
                                 <button type="button" className="xp" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : c.category)}>
                                   <Chevron />
-                                  {CATEGORY_LABEL[c.category]}
+                                  {t.cat[c.category]}
                                 </button>
                               ) : (
-                                CATEGORY_LABEL[c.category]
+                                t.cat[c.category]
                               )}
                             </th>
                             <td className="mut">{usd(c.forecast, { exact: true })}</td>
@@ -337,7 +335,7 @@ export default function PerformancePage() {
                             refs.map((r) => (
                               <tr key={`${r.kind}-${r.id}`} className="src">
                                 <th scope="row" colSpan={2}>
-                                  {r.date} · {r.label}
+                                  {r.date} · {refLabel(r, i)}
                                 </th>
                                 <td>{usd(r.amount, { exact: true })}</td>
                                 <td />
@@ -348,23 +346,23 @@ export default function PerformancePage() {
                     })}
                     {quiet.length > 0 && (
                       <tr>
-                        <th scope="row">Everything else ({quiet.length} lines, on plan)</th>
-                        <td className="mut">{usd(quiet.reduce((t, c) => t + c.forecast, 0), { exact: true })}</td>
-                        <td>{usd(quiet.reduce((t, c) => t + c.actual, 0), { exact: true })}</td>
+                        <th scope="row">{P.everythingElse(quiet.length)}</th>
+                        <td className="mut">{usd(quiet.reduce((x, c) => x + c.forecast, 0), { exact: true })}</td>
+                        <td>{usd(quiet.reduce((x, c) => x + c.actual, 0), { exact: true })}</td>
                         <td className="mut">{usd(0, { exact: true })}</td>
                       </tr>
                     )}
                     <tr className="s">
-                      <th scope="row">Total variance</th>
+                      <th scope="row">{P.totalVariance}</th>
                       <td />
                       <td />
-                      <td className={rl.totalVariance < 0 ? "neg" : rl.totalVariance > 0 ? "pos" : ""}>{usd(rl.totalVariance, { exact: true, signed: true })}</td>
+                      <td className={sign(rl.totalVariance)}>{usd(rl.totalVariance, { exact: true, signed: true })}</td>
                     </tr>
                   </tbody>
                 </table>
-                <p className="note">Positive means better than plan. The rows add up exactly to the total.</p>
+                <p className="note">{P.rowsAddUp}</p>
                 <ul className="why">
-                  {explainVariance(rl).map((line) => (
+                  {explainVariance(rl, i).map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
@@ -373,21 +371,19 @@ export default function PerformancePage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <section className="card cx" aria-labelledby="cx-h">
                   <h2 className="disp" id="cx-h">
-                    CapEx, kept separate
+                    {P.cxTitle}
                   </h2>
-                  <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 15 }}>
-                    Your reserve for a roof, HVAC or water heater. Saving into it isn&apos;t a loss, and spending from it doesn&apos;t count against monthly cash flow.
-                  </p>
+                  <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 15 }}>{P.cxText}</p>
                   <div className="meter" aria-hidden>
                     <i style={{ width: `${all.plannedCapexReserve ? Math.min(100, 100 - (all.actualCapex / all.plannedCapexReserve) * 100) : 0}%` }} />
                   </div>
                   <dl className="num">
                     <div>
-                      <dt>Set aside so far</dt>
+                      <dt>{P.setAside}</dt>
                       <dd>{usd(all.plannedCapexReserve, { exact: true })}</dd>
                     </div>
                     <div>
-                      <dt>Spent from it</dt>
+                      <dt>{P.spent}</dt>
                       <dd>{usd(all.actualCapex, { exact: true })}</dd>
                     </div>
                   </dl>
@@ -395,11 +391,11 @@ export default function PerformancePage() {
 
                 <section className="card" aria-labelledby="rm-h">
                   <h2 className="disp" id="rm-h">
-                    Recorded months
+                    {P.rmTitle}
                   </h2>
                   <div className="rmh" aria-hidden>
-                    <span>Month</span>
-                    <span>Cash flow</span>
+                    <span>{P.month}</span>
+                    <span>{P.cashFlow}</span>
                     <span />
                   </div>
                   <ul className="rm num">
@@ -412,28 +408,28 @@ export default function PerformancePage() {
                             {combined.mode[a.month] === "ledger" && (
                               <>
                                 {" "}
-                                <span className="tag" title="Built from your rent and expense entries">Ledger</span>
+                                <span className="tag" title={P.ledgerTagTitle}>{P.ledgerTag}</span>
                               </>
                             )}
                           </span>
                           <span className={v < 0 ? "neg" : ""}>{usd(v, { exact: true })}</span>
                           {combined.mode[a.month] === "ledger" ? (
                             <span>
-                              <button type="button" className="lnk" aria-label={`Enter totals manually for ${monthLabel(a.month)}`} onClick={() => toManual(a)}>
-                                Enter totals
+                              <button type="button" className="lnk" aria-label={P.enterTotalsFor(monthLabel(a.month))} onClick={() => toManual(a)}>
+                                {P.enterTotals}
                               </button>
                             </span>
                           ) : (
                             <span>
                               <button type="button" className="lnk" onClick={() => setDraft(a)}>
-                                Edit
+                                {t.common.edit}
                               </button>
                               <button type="button" className="lnk danger" onClick={() => remove(a.month)}>
-                                Delete
+                                {t.common.delete}
                               </button>
                               {hasEntries.has(a.month) && (
                                 <button type="button" className="lnk" onClick={() => toLedger(a.month)}>
-                                  Use ledger
+                                  {P.useLedger}
                                 </button>
                               )}
                             </span>
@@ -449,19 +445,17 @@ export default function PerformancePage() {
         ) : (
           <section className="hl" aria-labelledby="first-h">
             <h2 className="disp" id="first-h" style={{ margin: 0, fontSize: 28 }}>
-              Record your first month
+              {P.firstTitle}
             </h2>
-            <p style={{ margin: 0, color: "var(--ink-2)", maxWidth: "60ch" }}>
-              The form below starts at your plan&apos;s forecast. Change only what really happened, like a repair bill, and RentWise explains the difference.
-            </p>
+            <p style={{ margin: 0, color: "var(--ink-2)", maxWidth: "60ch" }}>{P.firstHint}</p>
           </section>
         )}
 
         <section id="record" className="card" aria-labelledby="record-h" style={{ maxWidth: 760, scrollMarginTop: 24 }}>
           <h2 className="disp" id="record-h" style={{ margin: 0, fontSize: 22 }}>
-            {replacing ? `Edit ${monthLabel(form.month)}` : "Record a month"}
+            {replacing ? P.editMonth(monthLabel(form.month)) : P.recordMonth}
           </h2>
-          <p style={{ margin: "4px 0 0", color: "var(--ink-2)", fontSize: 15 }}>Prefilled with the plan&apos;s monthly forecast. Overwrite with what was actually received and paid.</p>
+          <p style={{ margin: "4px 0 0", color: "var(--ink-2)", fontSize: 15 }}>{P.recordSub}</p>
           <form
             key={formRevision}
             className="rf num"
@@ -471,7 +465,7 @@ export default function PerformancePage() {
             }}
           >
             <label className="mo full">
-              Month
+              {P.month}
               {/* Safari and Firefox desktop render type="month" as plain text, so the format is spelled out. */}
               <input
                 type="month"
@@ -484,25 +478,25 @@ export default function PerformancePage() {
                 onChange={(e) => setDraft({ ...form, month: e.target.value.trim() })}
               />
               <span id="month-help" className={monthOk ? "sr-only" : "ferr"} style={{ fontWeight: 400 }}>
-                Use year and month, like 2026-11.
+                {P.monthFormat}
               </span>
             </label>
             {FIELD_KEYS.map((k) => (
               <NumberField
                 key={`${form.month}-${k}`}
                 className={k === "capex" ? "full" : undefined}
-                def={{ label: k === "capex" ? "CapEx spent" : CATEGORY_LABEL[k], kind: "money", help: HELP[k] ?? "", min: 0, max: 1_000_000 }}
+                def={{ label: k === "capex" ? t.cat.capexSpent : t.cat[k], kind: "money", help: k === "rentReceived" ? P.helpRent : k === "capex" ? P.helpCapex : "", min: 0, max: 1_000_000 }}
                 value={form[k]}
                 onCommit={(v: Cents) => setDraft({ ...form, [k]: v })}
               />
             ))}
             <p className="note full" style={{ margin: 0 }}>
-              Security deposits are not income; leave them out. CapEx is tracked against your reserve, not cash flow.
-              {replacing && " Saving replaces the entry already recorded for this month."}
+              {P.depositsNote}
+              {replacing && P.replaces}
             </p>
             <div className="full" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button type="submit" disabled={!valid} className="btn btn-primary">
-                {replacing ? "Save changes" : "Add month"}
+                {replacing ? P.saveChanges : P.addMonth}
               </button>
               <button
                 type="button"
@@ -512,7 +506,7 @@ export default function PerformancePage() {
                 }}
                 className="btn btn-quiet"
               >
-                Reset
+                {P.reset}
               </button>
             </div>
           </form>
@@ -521,7 +515,7 @@ export default function PerformancePage() {
         </div>
         )}
 
-        <PageFooter>RentWise is a modeling tool, not financial or tax advice. Keep your own receipts and statements; this page only compares the numbers you enter.</PageFooter>
+        <PageFooter />
       </div>
     </div>
   );

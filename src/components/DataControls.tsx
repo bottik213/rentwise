@@ -1,34 +1,37 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/i18n/client";
 import { clearAppData, exportAppData } from "@/lib/storage";
 
 export function DataControls() {
   const router = useRouter();
+  const { t, path } = useI18n();
   return (
     <div className="dc">
-      <span>Your data stays in this browser.</span>
+      <span>{t.data.stays}</span>
       <button type="button" className="lnk" onClick={exportAppData}>
-        Export my data (JSON)
+        {t.data.export}
       </button>
       <button
         type="button"
         className="lnk danger"
         onClick={() => {
-          if (!confirm("Delete every property, plan and recorded month stored in this browser? This can't be undone.")) return;
-          if (clearAppData()) router.push("/");
+          if (!confirm(t.data.clearConfirm)) return;
+          if (clearAppData()) router.push(path("/"));
         }}
       >
-        Clear my data
+        {t.data.clear}
       </button>
     </div>
   );
 }
 
-/** Disclaimer plus data controls, at the end of every page. */
-export function PageFooter({ children, className }: { children: React.ReactNode; className?: string }) {
+/** The disclaimer plus data controls, at the end of every page. */
+export function PageFooter({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <footer className={`pfoot ${className ?? ""}`}>
-      <p>{children}</p>
+      <p>{t.disclaimer}</p>
       <DataControls />
     </footer>
   );

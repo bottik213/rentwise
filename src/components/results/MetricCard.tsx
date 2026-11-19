@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Badge, InfoIcon } from "@/components/Icons";
 import { useTapTip } from "@/components/useTapTip";
+import { useI18n } from "@/i18n/client";
 import type { Judged } from "@/lib/verdict";
 import { AnimatedNumber } from "./AnimatedNumber";
 
@@ -26,6 +27,7 @@ interface Props {
 /** A number, its status, and an explanation that opens on hover, keyboard focus or tap. Edits flash the card. */
 export function MetricCard({ id, title, value, format, unit, offText, negative, badge, delta, upIsGood = true, small, children }: Props) {
   const tip = useTapTip<HTMLDivElement>();
+  const { t } = useI18n();
   const prev = useRef(value);
   const [change, setChange] = useState<number | null>(null);
 
@@ -43,7 +45,7 @@ export function MetricCard({ id, title, value, format, unit, offText, negative, 
 
   return (
     <div ref={tip.ref} className={`mc tw card-tip ${small ? "sm" : ""} ${change !== null ? "flash" : ""} ${tip.open ? "open" : ""}`}>
-      <button type="button" className="hit" aria-label={`Explain ${title}`} aria-describedby={`t-${id}`} aria-expanded={tip.open} onClick={tip.toggle} />
+      <button type="button" className="hit" aria-label={t.results.explain(title)} aria-describedby={`t-${id}`} aria-expanded={tip.open} onClick={tip.toggle} />
       <div className="t">
         <span>{title}</span>
         <span className="ib" aria-hidden>
