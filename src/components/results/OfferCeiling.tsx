@@ -63,7 +63,7 @@ function Scale({ asking, ceiling }: { asking: number; ceiling: number }) {
         Asking<b>{usd(asking)}</b>
       </span>
       <span className="mk ceil" style={{ left: `${X(ceiling)}%` }} />
-      <span className="ml" style={{ left: `${X(ceiling)}%`, transform: `translateX(${above ? "8px" : "calc(-100% - 8px)"})`, color: "var(--spruce)" }}>
+      <span className="ml" style={{ left: `${X(ceiling)}%`, transform: `translateX(${above ? "8px" : "calc(-100% - 8px)"})`, color: "var(--brand)" }}>
         Offer ceiling
         <b>
           <AnimatedNumber value={ceiling} format={whole} />

@@ -22,7 +22,7 @@
     flex: none;
     display: grid;
     place-items: center;
-    background: var(--spruce-tint);
+    background: var(--brand-tint);
   }
   .prop h1 {
     margin: 0;
@@ -188,8 +188,8 @@
     transition: border-color 300ms ease, box-shadow 300ms ease;
   }
   .mc.flash {
-    border-color: var(--spruce);
-    box-shadow: 0 0 0 3px var(--spruce-tint), var(--shadow);
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-tint), var(--shadow);
   }
   .mc .hit {
     position: absolute;
@@ -345,7 +345,7 @@
   }
   .bar.total,
   .bar.sub {
-    background: var(--spruce);
+    background: var(--brand);
   }
   .bar.ded {
     background: var(--deduct);
@@ -435,7 +435,7 @@
     gap: 12px;
   }
   .sc.base {
-    border: 2px solid var(--spruce);
+    border: 2px solid var(--brand);
     box-shadow: var(--shadow);
     padding: 24px;
   }
@@ -527,7 +527,7 @@
     background: var(--good);
   }
   .rng .dot.base {
-    background: var(--spruce);
+    background: var(--brand);
   }
   .rng .dl2 {
     position: absolute;
@@ -564,19 +564,19 @@
   table.adj input {
     width: 80px;
     height: 36px;
-    border: 1px solid var(--line-2);
+    border: 1px solid var(--field);
     border-radius: 6px;
     padding: 0 8px;
     text-align: right;
-    font: 500 15px var(--font-public-sans), sans-serif;
+    font: 500 15px var(--font-onest), sans-serif;
     background: var(--card);
     color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
   table.adj input:focus {
-    border-color: var(--spruce);
+    border-color: var(--brand);
     outline: 0;
-    box-shadow: 0 0 0 3px var(--spruce-tint);
+    box-shadow: 0 0 0 3px var(--brand-tint);
   }
   table.adj input[aria-invalid="true"] {
     border-color: var(--bad);
@@ -620,7 +620,7 @@
     position: absolute;
     top: 56px;
     height: 18px;
-    background: var(--spruce-tint);
+    background: var(--brand-tint);
     border-radius: 3px;
     transform-origin: left center;
     animation: grow 500ms var(--ease-out) 200ms both;
@@ -634,7 +634,7 @@
     background: var(--ink);
   }
   .scale .mk.ceil {
-    background: var(--spruce);
+    background: var(--brand);
     width: 4px;
     margin-left: -2px;
   }
@@ -655,7 +655,7 @@
     transform: translateX(-50%);
     font-size: 14px;
     font-weight: 600;
-    color: var(--spruce);
+    color: var(--brand);
     white-space: nowrap;
   }
   .chip {
@@ -665,8 +665,8 @@
     min-height: 32px;
     padding: 4px 12px;
     border-radius: 16px;
-    background: var(--spruce-tint);
-    color: var(--spruce);
+    background: var(--brand-tint);
+    color: var(--brand);
     font-size: 14px;
     font-weight: 600;
   }
@@ -720,7 +720,7 @@
     transition: transform 160ms var(--ease-out);
   }
   .sw:checked {
-    background: var(--spruce);
+    background: var(--brand);
   }
   .sw:checked::after {
     transform: translateX(18px);
@@ -1093,8 +1093,8 @@
     box-shadow: 0 0 0 1px var(--line-2), 0 8px 24px rgba(0, 0, 0, 0.5);
   }
   .pg-results .mob .btn {
-    background: var(--spruce);
-    color: var(--on-spruce);
+    background: var(--brand);
+    color: var(--on-brand);
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -22,7 +22,7 @@ export const Chevron = () => (
 
 export const Logo = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M3 11.5L12 4l9 7.5V21H3z" style={{ fill: "var(--spruce)" }} />
+    <path d="M3 11.5L12 4l9 7.5V21H3z" style={{ fill: "var(--brand)" }} />
     <rect x="9.5" y="13" width="5" height="8" style={{ fill: "var(--paper)" }} />
   </svg>
 );

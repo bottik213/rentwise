@@ -110,7 +110,7 @@ export default function ReportPage() {
 
   const accent = s.branding?.accent;
   return (
-    <div className="pg-results pg-report" data-brand={accent ? "" : undefined} style={accent ? ({ "--brand": accent } as React.CSSProperties) : undefined}>
+    <div className="pg-results pg-report" data-brand={accent ? "" : undefined} style={accent ? ({ "--accent": accent } as React.CSSProperties) : undefined}>
       <div className="rwrap">
         <div className="rbar noprint">
           <Link href="/results" onClick={() => setStored((x) => ({ ...x, activeId: deal.id }))} className="lnk">← Back to the analysis</Link>

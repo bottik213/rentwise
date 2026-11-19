@@ -34,7 +34,7 @@
     align-items: flex-start;
     gap: 16px;
     padding-bottom: 16px;
-    border-bottom: 3px solid var(--spruce);
+    border-bottom: 3px solid var(--brand);
   }
   .rh .brand {
     display: flex;
@@ -49,7 +49,7 @@
   .rh .brand b {
     display: block;
     font-weight: 600;
-    color: var(--spruce);
+    color: var(--brand);
   }
   .rh .brand span {
     display: block;
@@ -144,7 +144,7 @@
     cursor: pointer;
   }
   label.btn:focus-within {
-    outline: 2px solid var(--spruce);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 }
@@ -152,8 +152,8 @@
 /* The accent passed a contrast check against white, so it brands the light theme and the printout only. */
 @media print, (prefers-color-scheme: light) {
   .pg-report[data-brand] {
-    --spruce: var(--brand);
-    --spruce-hi: var(--brand);
+    --brand: var(--accent);
+    --brand-hi: var(--accent);
   }
 }
 

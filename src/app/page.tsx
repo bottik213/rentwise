@@ -73,7 +73,7 @@ function RangeCrop() {
   const lo = Math.min(0, ...vals) * 1.15;
   const hi = Math.max(0, ...vals) * 1.15;
   const X = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
-  const fill = ["var(--bad)", "var(--spruce)", "var(--good)"];
+  const fill = ["var(--bad)", "var(--brand)", "var(--good)"];
   return (
     <div className="crop num" aria-hidden>
       <div className="rg">
@@ -103,11 +103,11 @@ function CeilingCrop() {
         <span className="ln" />
         <span className="gp" style={{ left: `${X(ask)}%`, width: `${X(CEIL) - X(ask)}%` }} />
         <span className="m" style={{ left: `${X(ask)}%`, background: "var(--ink)" }} />
-        <span className="m" style={{ left: `${X(CEIL)}%`, background: "var(--spruce)", width: 3 }} />
+        <span className="m" style={{ left: `${X(CEIL)}%`, background: "var(--brand)", width: 3 }} />
         <span className="ml" style={{ left: `${X(ask)}%`, transform: "translateX(calc(-100% - 6px))" }}>
           Asking ${Math.round(ask / 100_000)}k
         </span>
-        <span className="ml" style={{ left: `${X(CEIL)}%`, transform: "translateX(6px)", color: "var(--spruce)", fontWeight: 600 }}>
+        <span className="ml" style={{ left: `${X(CEIL)}%`, transform: "translateX(6px)", color: "var(--brand)", fontWeight: 600 }}>
           {usd(CEIL)}
         </span>
         <span className="gl" style={{ left: `${(X(ask) + X(CEIL)) / 2}%` }}>
@@ -175,7 +175,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <dt>Offer ceiling</dt>
-                  <dd style={{ color: "var(--spruce)" }}>{CEIL === null ? "n/a" : <CountUp value={CEIL} as="whole" />}</dd>
+                  <dd style={{ color: "var(--brand)" }}>{CEIL === null ? "n/a" : <CountUp value={CEIL} as="whole" />}</dd>
                 </div>
               </dl>
             </div>

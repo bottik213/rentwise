@@ -70,7 +70,7 @@ export default function SharedReportPage() {
 
   const accent = p.branding?.accent;
   return (
-    <div className="pg-results pg-report" data-brand={accent ? "" : undefined} style={accent ? ({ "--brand": accent } as React.CSSProperties) : undefined}>
+    <div className="pg-results pg-report" data-brand={accent ? "" : undefined} style={accent ? ({ "--accent": accent } as React.CSSProperties) : undefined}>
       <div className="rwrap">
         <div className="rshare noprint">
           <p>
