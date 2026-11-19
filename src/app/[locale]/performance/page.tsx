@@ -126,7 +126,7 @@ export default function PerformancePage() {
   const previous = actuals.slice(-3, -1).reverse();
   const planCf = u.cashFlowBeforeCapex;
   const points = actuals.slice(-12).map((a) => ({ month: a.month, actual: variance(u, [a]).actualCashFlowBeforeCapex }));
-  const name = s.isExample ? t.common.exampleName : plan.inputs.nickname || t.common.yourProperty;
+  const name = i.name(plan.inputs.nickname, s.isExample, t.common.yourProperty);
 
   const save = () => {
     if (!valid) return;

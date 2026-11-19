@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 /** The saved state with the open property's fields at the top, as the app sees it (storage v2). */
 const appState = (page: Page) =>
   page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem("rentwise:v3")!);
+    const s = JSON.parse(localStorage.getItem("rentwise:kz:v1")!);
     const d = s.deals.find((x: { id: string }) => x.id === s.activeId);
     return { ...s, property: d?.inputs ?? null, plan: d?.plan ?? null, actuals: d?.actuals ?? [], isExample: d?.isExample ?? false };
   });
@@ -50,22 +50,22 @@ test("analyze → actuals → variance", async ({ page }) => {
   const errors = watchConsole(page);
 
   // 1. No sign-up: the example loads straight into the analysis.
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await expect(page.getByText("Synthetic example")).toBeVisible();
-  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("₸65.36");
   await noHorizontalScroll(page);
 
   // 2. Numbers change with input: vacancy 5% → 10% turns cash flow negative (hand-computed: −$47.34).
   await openQuick(page);
   await page.getByLabel("Vacancy", { exact: true }).fill("10");
   await closeQuick(page);
-  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("−$47.34");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("−₸47.34");
   await openQuick(page);
   await page.getByLabel("Vacancy", { exact: true }).fill("5");
   await closeQuick(page);
-  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$65.36");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("₸65.36");
 
   // 3. Mark as owned, record one on-plan month and one with a surprise $1,800 repair.
   await page.getByRole("button", { name: "Mark as owned" }).click();
@@ -75,22 +75,22 @@ test("analyze → actuals → variance", async ({ page }) => {
   await page.getByRole("button", { name: "Add month" }).click();
 
   // 4. Variance reconciles to the cent and is explained.
-  await expect(row(page, /^Total variance/)).toContainText("−$1,800.00");
-  await expect(row(page, /^Repairs & maintenance/)).toContainText("−$1,800.00");
-  await expect(page.getByText(/Repairs & maintenance: .* −\$1,800\.00 to cash flow\./)).toBeVisible();
+  await expect(row(page, /^Total variance/)).toContainText("−₸1,800.00");
+  await expect(row(page, /^Repairs & maintenance/)).toContainText("−₸1,800.00");
+  await expect(page.getByText(/Repairs & maintenance: .* −₸1,800\.00 to cash flow\./)).toBeVisible();
   await expect(page.getByRole("img", { name: /Effect on cash flow by category/ })).toBeVisible();
   await noHorizontalScroll(page);
 
   // 5. Actuals persist after refresh.
   await page.reload();
-  await expect(row(page, /^Total variance/)).toContainText("−$1,800.00");
+  await expect(row(page, /^Total variance/)).toContainText("−₸1,800.00");
   await expect(page.getByRole("listitem").filter({ hasText: "Delete" })).toHaveCount(2);
 
   expect(errors).toEqual([]);
 });
 
 test("re-saving a month replaces it instead of double-counting", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await page.getByRole("button", { name: "Add month" }).click();
@@ -100,36 +100,36 @@ test("re-saving a month replaces it instead of double-counting", async ({ page }
   await page.getByRole("button", { name: "Save changes" }).click();
 
   await expect(page.getByRole("listitem").filter({ hasText: "Delete" })).toHaveCount(1);
-  await expect(row(page, /^Total variance/)).toContainText("−$100.00");
+  await expect(row(page, /^Total variance/)).toContainText("−₸100.00");
 });
 
 test("empty states and clearing data", async ({ page }) => {
-  await page.goto("/performance");
+  await page.goto("/en/performance");
   await expect(page.getByRole("heading", { name: "No owned property yet" })).toBeVisible();
-  await page.goto("/results");
+  await page.goto("/en/results");
   await expect(page.getByRole("heading", { name: "No property to analyze yet" })).toBeVisible();
 
   await page.getByRole("button", { name: "Try the example property" }).click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Clear my data" }).click();
-  await expect(page).toHaveURL(/\/$/);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBeNull();
+  await expect(page).toHaveURL(/\/en$/);
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBeNull();
 });
 
 test("all-cash purchase: no P&I, price-independent cash flow", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("link", { name: "All inputs" }).click();
   await page.getByLabel("All-cash purchase", { exact: false }).check();
   await page.getByRole("button", { name: "Save and view analysis" }).click();
 
   // Hand-computed: NOI $1,435.30 − P&I $0 − CapEx reserve $122.50.
-  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("₸1,312.80");
   await expect(page.getByLabel("Interest rate", { exact: true })).toBeDisabled();
 });
 
 test("export downloads the saved data as JSON", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export my data (JSON)" }).click()]);
   expect(download.suggestedFilename()).toBe("rentwise-data.json");
@@ -140,22 +140,22 @@ test("export downloads the saved data as JSON", async ({ page }) => {
 });
 
 test("loading the example never silently replaces recorded months", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await page.getByRole("button", { name: "Add month" }).click();
 
-  await page.goto("/");
+  await page.goto("/en");
   let asked = "";
   page.once("dialog", (d) => { asked = d.message(); void d.dismiss(); });
   await page.getByRole("button", { name: "Try the example property" }).click();
   expect(asked).toContain("1 recorded month");
-  await expect(page).toHaveURL(/\/$/); // cancel stays put
+  await expect(page).toHaveURL(/\/en$/); // cancel stays put
   expect((await appState(page)).actuals.length).toBe(1);
 });
 
 test("property form blocks invalid drafts and saves corrected values", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("link", { name: "All inputs" }).click();
   await expect(page).toHaveURL(/\/analyze$/); // the results sidebar also has an Insurance field
@@ -183,7 +183,7 @@ test("property form blocks invalid drafts and saves corrected values", async ({ 
   await expect(price).toHaveAttribute("aria-invalid", "true");
   expect((await appState(page)).property.annualInsurance).toBe(192000);
 
-  await price.fill("$275,000");
+  await price.fill("₸275,000");
   await save.click();
   await expect(page).toHaveURL(/\/results$/);
   const property = (await appState(page)).property;
@@ -193,18 +193,18 @@ test("property form blocks invalid drafts and saves corrected values", async ({ 
 });
 
 test("disabled financing drafts do not block an all-cash purchase", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("link", { name: "All inputs" }).click();
   await page.getByLabel("Interest rate", { exact: true }).fill("-1");
   await page.getByLabel("All-cash purchase", { exact: false }).check();
   await page.getByRole("button", { name: "Save and view analysis" }).click();
   await expect(page).toHaveURL(/\/results$/);
-  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("$1,312.80");
+  await expect(await statementRow(page, /^Cash flow after reserves/)).toContainText("₸1,312.80");
 });
 
 test("actuals block invalid drafts, reset them, and save corrected amounts", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await expect(page).toHaveURL(/\/performance$/); // the results sidebar also has an Insurance field
@@ -222,14 +222,14 @@ test("actuals block invalid drafts, reset them, and save corrected amounts", asy
   await expect(insurance).toHaveAttribute("aria-invalid", "false");
   await insurance.fill("260");
   await page.getByRole("button", { name: "Add month" }).click();
-  await expect(row(page, /^Total variance/)).toContainText("−$100.00");
+  await expect(row(page, /^Total variance/)).toContainText("−₸100.00");
   const actuals = (await appState(page)).actuals;
   expect(actuals).toHaveLength(1);
   expect(actuals[0].insurance).toBe(26000);
 });
 
 test("loading the example protects edited inputs", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   const edits = [["Scheduled rent", "3000"]];
 
@@ -237,14 +237,14 @@ test("loading the example protects edited inputs", async ({ page }) => {
     await openQuick(page);
     await page.getByLabel(label, { exact: true }).fill(value);
     await closeQuick(page);
-    const saved = await page.evaluate(() => localStorage.getItem("rentwise:v3"));
-    await page.goto("/");
+    const saved = await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"));
+    await page.goto("/en");
     let asked = "";
     page.once("dialog", (d) => { asked = d.message(); void d.dismiss(); });
     await page.getByRole("button", { name: "Try the example property" }).click();
     expect(asked).toContain("Loading the example resets");
-    await expect(page).toHaveURL(/\/$/);
-    expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
+    await expect(page).toHaveURL(/\/en$/);
+    expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBe(saved);
 
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Try the example property" }).click();
@@ -256,14 +256,14 @@ test("loading the example protects edited inputs", async ({ page }) => {
   }
 
   // An untouched example can still be loaded again without a confirmation.
-  await page.goto("/");
+  await page.goto("/en");
   page.once("dialog", (d) => d.dismiss());
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
 });
 
 test("invalid Quick assumptions block both locking and re-locking a plan", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   const insurance = page.getByLabel("Insurance", { exact: true });
   const markOwned = async (name: string) => {

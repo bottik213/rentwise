@@ -35,7 +35,7 @@ export default function ComparePage() {
   const i = useI18n();
   const { t, money: usd, path } = i;
   const C = t.compare;
-  const nameOf = (d: Deal) => (d.isExample ? t.common.exampleName : d.inputs.nickname || t.common.untitled);
+  const nameOf = (d: Deal) => i.name(d.inputs.nickname, d.isExample, t.common.untitled);
   const [picked, setPicked] = useState<string[] | null>(null);
   const [pair, setPair] = useState<[number, number]>([0, 1]);
   const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
@@ -132,7 +132,7 @@ export default function ComparePage() {
                       <button type="button" className="lnk" onClick={() => open(d.id, "/results")}>{t.common.open}</button>
                       <Link href={path(`/report/${d.id}`)} className="lnk">{t.common.report}</Link>
                       <button type="button" className="lnk" onClick={() => setRenaming({ id: d.id, draft: d.inputs.nickname ?? "" })}>{C.rename}</button>
-                      <button type="button" className="lnk" onClick={() => duplicateDeal(d.id, (n) => t.common.copyOf(n || t.common.untitled))}>{C.duplicate}</button>
+                      <button type="button" className="lnk" onClick={() => duplicateDeal(d.id, () => t.common.copyOf(nameOf(d)))}>{C.duplicate}</button>
                       <button
                         type="button"
                         className="lnk danger"

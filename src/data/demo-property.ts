@@ -1,4 +1,4 @@
-import type { PropertyInputs } from "@/lib/finance/types";
+import type { PropertyInputs } from "../lib/finance/types";
 
 /** SYNTHETIC example property. Not a real listing; numbers are illustrative. Doubles as the reference test fixture. */
 export const DEMO_PROPERTY: PropertyInputs = {

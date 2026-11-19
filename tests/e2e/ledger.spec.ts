@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const KEY = "rentwise:v3";
+const KEY = "rentwise:kz:v1";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const label = (d: Date) => d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -14,7 +14,7 @@ test("lease, late rent and a repair explain the variance to the exact entry, and
   const m2Late = new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, 9));
   const m2Repair = new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, 12));
 
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await page.getByRole("button", { name: "Mark as owned" }).click();
@@ -38,7 +38,7 @@ test("lease, late rent and a repair explain the variance to the exact entry, and
   await page.getByRole("button", { name: "Record payment" }).click();
   const m2Row = page.getByRole("row", { name: new RegExp(`^${label(m2Late)}`) });
   await expect(m2Row).toContainText("Paid late");
-  await expect(m2Row).toContainText("$50.00 paid");
+  await expect(m2Row).toContainText("₸50.00 paid");
 
   // The water heater, done with its cost in one step.
   await page.getByRole("tab", { name: "Expenses & maintenance" }).click();
@@ -48,7 +48,7 @@ test("lease, late rent and a repair explain the variance to the exact entry, and
   await page.getByLabel("Done on").fill(iso(m2Repair));
   await page.getByLabel("Cost (optional)").fill("1800");
   await page.getByRole("button", { name: "Save as done" }).click();
-  await expect(page.getByRole("row", { name: /Water heater replacement/ })).toContainText("$1,800.00");
+  await expect(page.getByRole("row", { name: /Water heater replacement/ })).toContainText("₸1,800.00");
 
   // Overview: add the usual bills, then the repairs line points at the water heater.
   await page.getByRole("tab", { name: "Overview" }).click();
@@ -56,21 +56,21 @@ test("lease, late rent and a repair explain the variance to the exact entry, and
   await expect(page.getByRole("button", { name: "Add them at the planned amounts" })).toHaveCount(0);
   await page.getByRole("button", { name: "Repairs & maintenance" }).click();
   await expect(page.locator("tr.src")).toContainText(["Water heater replacement"]);
-  await expect(page.locator("tr.src")).toContainText(["$1,800.00"]);
-  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−$1,431.50");
+  await expect(page.locator("tr.src")).toContainText(["₸1,800.00"]);
+  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−₸1,431.50");
   // The deposit never counts: other income is only the $50 fee.
-  await expect(page.getByRole("row", { name: /Other income/ })).toContainText("$50.00");
-  await expect(page.getByRole("row", { name: /Other income/ })).not.toContainText("$2,450");
+  await expect(page.getByRole("row", { name: /Other income/ })).toContainText("₸50.00");
+  await expect(page.getByRole("row", { name: /Other income/ })).not.toContainText("₸2,450");
 
   // Everything persists across a reload.
   await page.reload();
-  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−$1,431.50");
+  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−₸1,431.50");
   await expect(page.getByText("2 months recorded")).toBeVisible();
 
   // Switch the month to manual totals: prefilled from the ledger, counted once.
   await page.getByRole("button", { name: `Enter totals manually for ${label(m2Late)}` }).click();
   await expect(page.getByText("2 months recorded")).toBeVisible();
-  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−$1,431.50");
+  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−₸1,431.50");
   const saved = await page.evaluate((k) => {
     const s = JSON.parse(localStorage.getItem(k)!);
     const d = s.deals.find((x: { id: string }) => x.id === s.activeId);

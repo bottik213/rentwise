@@ -49,11 +49,11 @@ test("old links redirect into Russian and keep their query and fragment", async 
 
 test("the switcher changes the language and keeps the page", async ({ page }) => {
   await page.goto("/ru/compare");
-  await page.getByRole("link", { name: "EN" }).click();
+  await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en\/compare$/);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your properties");
-  await page.getByRole("link", { name: "KZ" }).click();
+  await page.getByRole("link", { name: "KZ", exact: true }).click();
   await expect(page).toHaveURL(/\/kk\/compare$/);
 });
 

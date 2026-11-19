@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 /** The saved state with the open property's fields at the top, as the app sees it (storage v2). */
 const appState = (page: Page) =>
   page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem("rentwise:v3")!);
+    const s = JSON.parse(localStorage.getItem("rentwise:kz:v1")!);
     const d = s.deals.find((x: { id: string }) => x.id === s.activeId);
     return { ...s, property: d?.inputs ?? null, plan: d?.plan ?? null, actuals: d?.actuals ?? [], isExample: d?.isExample ?? false };
   });
@@ -14,7 +14,7 @@ async function simulateStorageFailures(page: Page) {
     const set = Storage.prototype.setItem;
     const remove = Storage.prototype.removeItem;
     const blocked = (key: string, operation: string) =>
-      key === "rentwise:v3" && get.call(sessionStorage, "rentwise-test:storage-failure") === operation;
+      key === "rentwise:kz:v1" && get.call(sessionStorage, "rentwise-test:storage-failure") === operation;
 
     Storage.prototype.getItem = function (key) {
       if (blocked(key, "read")) throw new DOMException("Storage blocked", "SecurityError");
@@ -42,7 +42,7 @@ const beforeUnloadBlocked = (page: Page) => page.evaluate(() => {
 
 test("failed saves stay available for export and survive a successful retry", async ({ page }) => {
   await simulateStorageFailures(page);
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await expect(page).toHaveURL(/\/performance$/); // the results sidebar also has an Insurance field
@@ -57,8 +57,8 @@ test("failed saves stay available for export and survive a successful retry", as
   expect(await beforeUnloadBlocked(page)).toBe(true);
 
   // A cross-tab event must not replace our unsaved month with the older saved state.
-  await page.evaluate(() => window.dispatchEvent(new StorageEvent("storage", { key: "rentwise:v3" })));
-  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−$100.00");
+  await page.evaluate(() => window.dispatchEvent(new StorageEvent("storage", { key: "rentwise:kz:v1" })));
+  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−₸100.00");
   await warning.getByRole("button", { name: "Retry saving" }).click();
   await expect(warning).toBeVisible();
 
@@ -80,19 +80,19 @@ test("failed saves stay available for export and survive a successful retry", as
   expect(await beforeUnloadBlocked(page)).toBe(false);
   await page.reload();
   await page.getByRole("link", { name: "Actuals", exact: true }).click();
-  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−$100.00");
+  await expect(page.getByRole("row", { name: /^Total variance/ })).toContainText("−₸100.00");
   expect((await appState(page)).actuals[0].insurance).toBe(26000);
 });
 
 test("failed loads can be retried without replacing existing saved data", async ({ page }) => {
   await simulateStorageFailures(page);
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page.locator('aside[aria-label="Quick assumptions"]')).toBeAttached();
   const sheet = page.getByRole("button", { name: "Edit assumptions" });
   if (await sheet.isVisible()) await sheet.click(); // phones: quick assumptions live in a bottom sheet
   await page.getByLabel("Scheduled rent", { exact: true }).fill("3000");
-  const saved = await page.evaluate(() => localStorage.getItem("rentwise:v3"));
+  const saved = await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"));
 
   await fail(page, "read");
   await page.reload();
@@ -105,16 +105,16 @@ test("failed loads can be retried without replacing existing saved data", async 
   await warning.getByRole("button", { name: "Try loading again" }).click();
   await expect(warning).toHaveCount(0);
   await expect(page.getByLabel("Scheduled rent", { exact: true })).toHaveValue("3,000"); // money fields show separators once saved
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBe(saved);
 });
 
 test("failed deletion keeps the property available until clearing succeeds", async ({ page }) => {
   await simulateStorageFailures(page);
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await page.getByRole("button", { name: "Add month" }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("rentwise:v3"));
+  const saved = await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"));
   await fail(page, "clear");
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Clear my data" }).click();
@@ -123,36 +123,36 @@ test("failed deletion keeps the property available until clearing succeeds", asy
   await expect(page).toHaveURL(/\/performance$/);
   await expect(warning).toContainText("Your saved data wasn't cleared");
   await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(1);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBe(saved);
 
   await recover(page);
   await warning.getByRole("button", { name: "Retry clearing" }).click();
   await expect(warning).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "No owned property yet" })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBeNull();
   await page.reload();
   await expect(page.getByRole("heading", { name: "No owned property yet" })).toBeVisible();
 });
 
 test("unread actuals cannot be replaced by the example or a new property", async ({ page }) => {
   await simulateStorageFailures(page);
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await page.getByRole("button", { name: "Mark as owned" }).click();
   await page.getByRole("button", { name: "Add month" }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("rentwise:v3"));
+  const saved = await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"));
   await fail(page, "read");
   await page.reload();
   const warning = page.getByRole("alert").filter({ hasText: "Saved data couldn't be loaded" });
   await expect(warning).toBeVisible();
   await page.getByRole("link", { name: "RentWise", exact: true }).click();
   await page.getByRole("button", { name: "Try the example property" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/en$/);
 
   await recover(page);
   await page.getByRole("button", { name: "Try the example property" }).click();
-  await expect(page).toHaveURL(/\/$/);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
+  await expect(page).toHaveURL(/\/en$/);
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBe(saved);
 
   await page.getByRole("link", { name: "Inputs", exact: true }).click();
   await page.getByLabel("Purchase price", { exact: true }).fill("250000");
@@ -161,11 +161,11 @@ test("unread actuals cannot be replaced by the example or a new property", async
   await page.getByLabel("Insurance", { exact: true }).fill("1920");
   await page.getByRole("button", { name: "Analyze property", exact: true }).click();
   await expect(page).toHaveURL(/\/analyze$/);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBe(saved);
 
   await warning.getByRole("button", { name: "Try loading again" }).click();
   await expect(warning).toHaveCount(0);
   await page.getByRole("link", { name: "Actuals", exact: true }).click();
   await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(1);
-  expect(await page.evaluate(() => localStorage.getItem("rentwise:v3"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBe(saved);
 });

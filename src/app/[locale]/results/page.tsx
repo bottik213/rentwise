@@ -134,7 +134,7 @@ export default function ResultsPage() {
           </span>
         )}
         <div className="ttl">
-          <h1 className="disp">{s.isExample ? t.common.exampleName : p.nickname || t.common.yourProperty}</h1>
+          <h1 className="disp">{i.name(p.nickname, s.isExample, t.common.yourProperty)}</h1>
           <p className="num">
             {r.sub(usd(p.purchasePrice), usd(p.monthlyRent))}
             {s.isExample && <> · <span className="tag">{t.common.synthetic}</span></>}

@@ -25,7 +25,6 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: t.meta.title,
     description: t.meta.description,
-    alternates: { languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}`])) },
   };
 }
 

@@ -712,8 +712,16 @@ details.x[open] .xb {
   .nav a.home {
     display: none;
   }
+  /* Russian and Kazakh tab names plus RU/KZ/EN don't fit one row: logo and languages on top, tabs below. */
   .top {
-    gap: 12px;
+    gap: 0 12px;
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 8px;
+  }
+  .nav {
+    order: 3;
+    flex-basis: 100%;
   }
   .logo {
     font-size: 18px;

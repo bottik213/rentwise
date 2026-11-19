@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("two saved properties compare side by side, with the best value marked per row", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await page.getByRole("link", { name: "Compare", exact: true }).click();
@@ -20,13 +20,13 @@ test("two saved properties compare side by side, with the best value marked per 
   await expect(both.nth(0)).toBeChecked();
   await expect(both.nth(1)).toBeChecked();
   // Rent: the copy (2nd) is higher and is marked best, on desktop (table) and phone (metric list) alike.
-  await expect(page.getByText("$2,600/mo (best)", { exact: true }).filter({ visible: true })).toHaveCount(1);
-  await expect(page.getByText("$2,450/mo (best)", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("₸2,600/mo (best)", { exact: true }).filter({ visible: true })).toHaveCount(1);
+  await expect(page.getByText("₸2,450/mo (best)", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Every assumption matches")).toBeVisible();
 });
 
 test("the report refuses a low-contrast accent, and prints without the app chrome", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await page.getByRole("link", { name: "Report", exact: true }).click();
@@ -46,7 +46,7 @@ test("the report refuses a low-contrast accent, and prints without the app chrom
 });
 
 test("a share link opens read-only in a fresh browser, saves on request, and a broken link explains itself", async ({ page, browser, baseURL }) => {
-  await page.goto("/");
+  await page.goto("/en");
   await page.getByRole("button", { name: "Try the example property" }).click();
   await expect(page).toHaveURL(/\/results$/);
   await page.getByRole("link", { name: "Report", exact: true }).click();
@@ -61,12 +61,12 @@ test("a share link opens read-only in a fresh browser, saves on request, and a b
   await other.goto(url);
   await expect(other.getByRole("heading", { level: 1 })).toHaveText("Example duplex");
   await expect(other.getByText("Shared report, read-only.")).toBeVisible();
-  expect(await other.evaluate(() => localStorage.getItem("rentwise:v3"))).toBeNull(); // nothing saved by just looking
+  expect(await other.evaluate(() => localStorage.getItem("rentwise:kz:v1"))).toBeNull(); // nothing saved by just looking
 
   await other.getByRole("button", { name: "Save to my RentWise" }).click();
   await expect(other).toHaveURL(/\/results$/);
   await expect(other.getByRole("heading", { level: 1 })).toContainText("Example duplex");
-  expect(await other.evaluate(() => JSON.parse(localStorage.getItem("rentwise:v3")!).deals.length)).toBe(1);
+  expect(await other.evaluate(() => JSON.parse(localStorage.getItem("rentwise:kz:v1")!).deals.length)).toBe(1);
 
   await other.goto(url.slice(0, -12));
   await expect(other.getByRole("heading", { name: "This link is broken or incomplete" })).toBeVisible();

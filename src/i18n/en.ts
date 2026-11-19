@@ -18,7 +18,6 @@ export const en = {
   common: {
     na: "n/a",
     mo: "/mo",
-    yr: "/yr",
     pts: "pts",
     synthetic: "Synthetic example",
     yourProperties: "Your properties",

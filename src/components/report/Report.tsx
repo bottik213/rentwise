@@ -32,7 +32,7 @@ export function Report({ data, generated }: { data: ReportData; generated: Date 
   const exact = (v: number) => usd(Math.round(v), { exact: true });
   const u = runScenarios(p, scenarios).base;
   const v = verdict(u, c, p.monthlyRent, i);
-  const name = data.isExample ? t.common.exampleName : p.nickname || t.common.property;
+  const name = i.name(p.nickname, data.isExample, t.common.property);
   const by = [b?.name, b?.company].filter(Boolean).join(", ");
   const estimate = t.sources.estimate;
 
